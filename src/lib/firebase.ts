@@ -1,13 +1,10 @@
 
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
+import { getAuth, type Auth, GoogleAuthProvider } from 'firebase/auth'; // Import GoogleAuthProvider
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getStorage, type FirebaseStorage } from 'firebase/storage'; // Import Storage
-// Import Analytics types and functions but defer initialization
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { getAnalytics, type Analytics, isSupported as isAnalyticsSupported } from "firebase/analytics";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -22,24 +19,25 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
-let storage: FirebaseStorage; // Declare storage
-let analyticsInstance: Analytics | null = null; // Store analytics instance
+let storage: FirebaseStorage;
+let analyticsInstance: Analytics | null = null;
 
-// Ensure all required Firebase config keys are present before initializing
 const requiredConfigKeys: (keyof typeof firebaseConfig)[] = [
   'apiKey',
   'authDomain',
   'projectId',
   'appId',
-  'storageBucket', // Add storageBucket as required for Storage initialization
+  'storageBucket',
 ];
 
 const missingKeys = requiredConfigKeys.filter(key => !firebaseConfig[key]);
 
 if (missingKeys.length > 0) {
   console.error(`Firebase config is missing required keys from environment variables: ${missingKeys.join(', ')}.`);
-  console.error('Please ensure all NEXT_PUBLIC_FIREBASE_ prefixed environment variables are set correctly in your .env or .env.local file.');
-  // Potentially throw an error or handle this state appropriately for your application
+  // Create a placeholder for .env.local if it doesn't exist or is missing keys
+  if (typeof window !== 'undefined') { // Only show alert in browser
+    alert(`Warning: Firebase configuration is incomplete. Some features might not work. Please check your .env.local file for the following missing keys: ${missingKeys.join(', ')}`);
+  }
 }
 
 
@@ -48,30 +46,41 @@ if (getApps().length === 0) {
     if (requiredConfigKeys.every(key => !!firebaseConfig[key])) {
         app = initializeApp(firebaseConfig);
     } else {
-        throw new Error("Firebase configuration is incomplete. Cannot initialize app.");
+        // Gracefully handle missing config for client-side rendering,
+        // AuthProvider will show a loader and errors will be caught there.
+        // This avoids crashing the app during build or initial load if env vars are not set.
+        console.warn("Firebase configuration is incomplete. App initialization deferred.");
+        // A pseudo-app or a specific error state could be set here if needed
+        // For now, services relying on 'app' will fail gracefully or be caught by their initializers.
     }
   } catch (e) {
     console.error("Error initializing Firebase app:", e);
-    throw e; // Re-throw if app initialization fails
+    // Potentially re-throw or set an error state for the app to handle
   }
 } else {
   app = getApps()[0];
 }
 
-try {
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app); // Initialize storage
-} catch (e) {
-  console.error("Error initializing Firebase services:", e);
-  // Depending on app's requirements, might re-throw or handle
+// Initialize services only if 'app' was successfully initialized
+if (app!) {
+  try {
+    auth = getAuth(app);
+    db = getFirestore(app);
+    storage = getStorage(app);
+  } catch (e) {
+    console.error("Error initializing Firebase services (auth, db, storage):", e);
+  }
+} else {
+  // Handle the case where app couldn't be initialized
+  // auth, db, storage will remain undefined, and dependent features will need to handle this
+  console.warn("Firebase app not initialized. Auth, Firestore, and Storage services will not be available.");
 }
 
-// Function to initialize analytics on the client side
+
 export function initializeClientAnalytics() {
-  if (typeof window !== 'undefined' && !analyticsInstance) { // Check if running on client and not already initialized
+  if (typeof window !== 'undefined' && !analyticsInstance && app!) { 
     isAnalyticsSupported().then(supported => {
-      if (supported && firebaseConfig.measurementId) { // ensure measurementId is present
+      if (supported && firebaseConfig.measurementId) { 
         analyticsInstance = getAnalytics(app);
         console.log("Firebase Analytics initialized.");
       } else {
@@ -85,14 +94,16 @@ export function initializeClientAnalytics() {
 
 const getDb = (): Firestore => {
   if (!db) {
-    if (getApps().length === 0) {
-       if (requiredConfigKeys.every(key => !!firebaseConfig[key])) {
-        app = initializeApp(firebaseConfig);
-       } else {
-         throw new Error("Firebase configuration is incomplete. Cannot initialize app before getting Firestore instance.");
-       }
-    } else {
-        app = getApps()[0];
+    if (!app!) {
+        if (getApps().length === 0) {
+           if (requiredConfigKeys.every(key => !!firebaseConfig[key])) {
+            app = initializeApp(firebaseConfig);
+           } else {
+             throw new Error("Firebase configuration is incomplete. Cannot initialize app before getting Firestore instance.");
+           }
+        } else {
+            app = getApps()[0];
+        }
     }
     db = getFirestore(app);
   }
@@ -101,14 +112,16 @@ const getDb = (): Firestore => {
 
 const getAppStorage = (): FirebaseStorage => {
   if (!storage) {
-    if (getApps().length === 0) {
-       if (requiredConfigKeys.every(key => !!firebaseConfig[key])) {
-        app = initializeApp(firebaseConfig);
-       } else {
-         throw new Error("Firebase configuration is incomplete. Cannot initialize app before getting Storage instance.");
-       }
-    } else {
-        app = getApps()[0];
+     if (!app!) {
+        if (getApps().length === 0) {
+           if (requiredConfigKeys.every(key => !!firebaseConfig[key])) {
+            app = initializeApp(firebaseConfig);
+           } else {
+             throw new Error("Firebase configuration is incomplete. Cannot initialize app before getting Storage instance.");
+           }
+        } else {
+            app = getApps()[0];
+        }
     }
     storage = getStorage(app);
   }
@@ -116,7 +129,5 @@ const getAppStorage = (): FirebaseStorage => {
 }
 
 
-// Export auth and app as before
-export { app, auth, db, getDb, storage, getAppStorage }; // Export storage and its getter
-// Export analytics instance (will be null on server, initialized on client after calling initializeClientAnalytics)
+export { app, auth, db, getDb, storage, getAppStorage, GoogleAuthProvider }; 
 export { analyticsInstance as analytics };

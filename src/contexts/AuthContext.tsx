@@ -8,10 +8,11 @@ import {
   signOut, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
+  signInWithPopup, // Import for Google Sign-In
   type User as FirebaseUser,
   type AuthError
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, GoogleAuthProvider } from '@/lib/firebase'; // Import GoogleAuthProvider
 import { useRouter, useSearchParams } from 'next/navigation'; 
 import { useToast } from '@/hooks/use-toast';
 import { createUserProfileDocument, getUserProfile, recordUserLogin } from '@/lib/firestoreUtils';
@@ -21,6 +22,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, pass: string) => Promise<FirebaseUser | null>;
   signup: (email: string, pass: string) => Promise<FirebaseUser | null>;
+  loginWithGoogle: () => Promise<FirebaseUser | null>; // Add Google login method
   logout: () => Promise<void>;
 }
 
@@ -41,10 +43,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []); 
 
-  const handleAuthError = (error: AuthError, defaultMessage: string) => {
+  const handleAuthError = (error: AuthError | Error, defaultMessage: string) => {
     console.error("Firebase Auth Error:", error);
     let message = defaultMessage;
-    if (error.code) {
+    if ('code' in error) { // Check if it's an AuthError
       switch (error.code) {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
@@ -60,9 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         case 'auth/invalid-email':
           message = 'Please enter a valid email address.';
           break;
+        case 'auth/popup-closed-by-user':
+          message = 'Sign-in process was cancelled.';
+          break;
+        case 'auth/account-exists-with-different-credential':
+            message = 'An account already exists with the same email address but different sign-in credentials. Try signing in using a provider associated with this email address.';
+            break;
         default:
           message = error.message || defaultMessage;
       }
+    } else { // Generic error
+        message = error.message || defaultMessage;
     }
     toast({
       title: 'Authentication Error',
@@ -77,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       setCurrentUser(userCredential.user);
-      await recordUserLogin(userCredential.user.uid); // Record login
+      await recordUserLogin(userCredential.user.uid); 
       toast({ title: 'Logged In', description: 'Successfully logged in!' });
       
       const redirectUrl = searchParams.get('redirect') || '/dashboard'; 
@@ -94,29 +104,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      setCurrentUser(userCredential.user);
-      // createUserProfileDocument now initializes login activity fields
-      await createUserProfileDocument(userCredential.user.uid, {
-        email: userCredential.user.email || undefined,
-        displayName: userCredential.user.displayName || email.split('@')[0],
-      });
-      // recordUserLogin is implicitly handled by createUserProfileDocument's initial setup
-      // or could be called explicitly if specific "first login event" is needed beyond profile creation.
-      // For simplicity, we assume profile creation sets up the initial login state.
-      // If createUserProfileDocument itself calls recordUserLogin or sets initial streak, that's fine.
-      // The current createUserProfileDocument initializes these fields.
-
-      toast({ title: 'Account Created', description: 'Welcome to MindMash! You can complete your profile details later.' });
+      const user = userCredential.user;
+      setCurrentUser(user);
       
-      const redirectUrl = searchParams.get('redirect') || '/dashboard'; 
-      router.push(redirectUrl);
-      return userCredential.user;
+      await createUserProfileDocument(user.uid, {
+        email: user.email || undefined,
+        displayName: user.displayName || email.split('@')[0],
+      });
+      
+      toast({ title: 'Account Created', description: 'Welcome to MindMash! Consider completing your profile.' });
+      
+      const userProfile = await getUserProfile(user.uid);
+      const isProfileComplete = userProfile?.displayName && userProfile?.birthdate && userProfile.bio;
+
+      if (!isProfileComplete) {
+        router.push(`/profile?redirect=${searchParams.get('redirect') || '/dashboard'}`);
+      } else {
+        const redirectUrl = searchParams.get('redirect') || '/dashboard';
+        router.push(redirectUrl);
+      }
+      return user;
     } catch (error) {
       return handleAuthError(error as AuthError, 'Failed to sign up.');
     } finally {
       setLoading(false);
     }
   };
+
+  const loginWithGoogle = async (): Promise<FirebaseUser | null> => {
+    setLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      setCurrentUser(user);
+
+      // Check if user profile exists, if not create it
+      const userProfile = await getUserProfile(user.uid);
+      if (!userProfile) {
+        await createUserProfileDocument(user.uid, {
+          email: user.email || undefined,
+          displayName: user.displayName || user.email?.split('@')[0],
+          photoURL: user.photoURL || undefined,
+        });
+      }
+      await recordUserLogin(user.uid);
+
+      toast({ title: 'Logged In with Google', description: 'Successfully logged in!' });
+      
+      const isNewUserOrProfileIncomplete = !userProfile || !userProfile.displayName || !userProfile.birthdate || !userProfile.bio;
+
+      if (isNewUserOrProfileIncomplete) {
+        router.push(`/profile?redirect=${searchParams.get('redirect') || '/dashboard'}`);
+      } else {
+        const redirectUrl = searchParams.get('redirect') || '/dashboard';
+        router.push(redirectUrl);
+      }
+      return user;
+    } catch (error) {
+      return handleAuthError(error as AuthError, 'Failed to log in with Google.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const logout = async (): Promise<void> => {
     setLoading(true);
@@ -142,6 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     login,
     signup,
+    loginWithGoogle,
     logout,
   };
 
