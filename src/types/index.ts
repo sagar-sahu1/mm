@@ -44,8 +44,8 @@ export interface UserProfile {
   email: string | null; // From Firebase Auth
   displayName?: string | null; // From Firebase Auth & Firestore
   photoURL?: string | null; // From Firebase Auth & Firestore
-  bio?: string; // Firestore
-  birthdate?: string; // ISO string "YYYY-MM-DD", Firestore
+  bio: string; // Firestore, now mandatory
+  birthdate: string; // ISO string "YYYY-MM-DD", Firestore, now mandatory
   socialLinks?: SocialLinks; // Firestore
   createdAt?: number; // Firestore, when profile doc was created
   updatedAt?: number; // Firestore, when profile doc was last updated
@@ -58,8 +58,8 @@ export interface UserProfile {
 export interface UserProfileFirestoreData {
   displayName?: string;
   photoURL?: string;
-  bio?: string;
-  birthdate?: string; // ISO string "YYYY-MM-DD"
+  bio: string; // now mandatory
+  birthdate: string; // ISO string "YYYY-MM-DD", now mandatory
   socialLinks?: SocialLinks;
   email?: string; // Store email for easier querying/display if needed, though auth is source of truth
   createdAt?: number; 
@@ -67,3 +67,4 @@ export interface UserProfileFirestoreData {
   totalScore?: number; // Aggregated score for leaderboard
   quizzesCompleted?: number; // Count of completed quizzes for leaderboard
 }
+

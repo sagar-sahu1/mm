@@ -29,8 +29,8 @@ import { updateProfile as updateAuthProfile } from "firebase/auth";
 const profileFormSchema = z.object({
   displayName: z.string().min(2, "Display name must be at least 2 characters.").max(50, "Display name too long."),
   photoFile: z.instanceof(File).optional().nullable(),
-  bio: z.string().max(300, "Bio too long.").optional(),
-  birthdate: z.date().optional().nullable(),
+  bio: z.string().min(10, "Bio must be at least 10 characters.").max(300, "Bio too long (max 300 characters)."),
+  birthdate: z.date({ required_error: "Date of birth is required."}), // Made mandatory
   socialLinks: z.object({
     github: z.string().url("Invalid URL").optional().or(z.literal('')),
     linkedin: z.string().url("Invalid URL").optional().or(z.literal('')),
@@ -54,7 +54,7 @@ export default function UserProfilePage() {
       displayName: "",
       photoFile: null,
       bio: "",
-      birthdate: null,
+      birthdate: undefined, // Zod will handle required error if not set
       socialLinks: { github: "", linkedin: "", instagram: "" },
     },
   });
@@ -70,7 +70,7 @@ export default function UserProfilePage() {
             form.reset({
               displayName: profileData.displayName || currentUser.displayName || "",
               bio: profileData.bio || "",
-              birthdate: profileData.birthdate ? parseISO(profileData.birthdate) : null,
+              birthdate: profileData.birthdate ? parseISO(profileData.birthdate) : undefined,
               socialLinks: profileData.socialLinks || { github: "", linkedin: "", instagram: "" },
               photoFile: null,
             });
@@ -80,7 +80,7 @@ export default function UserProfilePage() {
             form.reset({
               displayName: currentUser.displayName || "",
               bio: "",
-              birthdate: null,
+              birthdate: undefined, // Prompt user to fill
               socialLinks: { github: "", linkedin: "", instagram: "" },
               photoFile: null,
             });
@@ -100,7 +100,7 @@ export default function UserProfilePage() {
            form.reset({ 
               displayName: currentUser.displayName || "",
               bio: "",
-              birthdate: null,
+              birthdate: undefined,
               socialLinks: { github: "", linkedin: "", instagram: "" },
               photoFile: null,
             });
@@ -136,8 +136,8 @@ export default function UserProfilePage() {
       const firestoreData: UserProfileFirestoreData = {
         displayName: data.displayName,
         photoURL: newPhotoURL || undefined,
-        bio: data.bio || "",
-        birthdate: data.birthdate ? format(data.birthdate, 'yyyy-MM-dd') : undefined,
+        bio: data.bio, // bio is now mandatory
+        birthdate: data.birthdate ? format(data.birthdate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'), // birthdate is mandatory
         socialLinks: data.socialLinks,
         email: currentUser.email || undefined,
       };
@@ -166,7 +166,11 @@ export default function UserProfilePage() {
       
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
       // Check if profile was incomplete before and now is complete
-      if (form.formState.isDirty) { // A simple check, could be more robust
+      // A simple check, could be more robust to check if all mandatory fields were initially empty or default
+      const wasIncomplete = !form.formState.defaultValues?.bio || !form.formState.defaultValues?.birthdate;
+      const isNowComplete = !!data.bio && !!data.birthdate;
+
+      if (wasIncomplete && isNowComplete) { 
         router.push('/'); // Redirect to home or dashboard after profile completion
       }
 
@@ -256,7 +260,7 @@ export default function UserProfilePage() {
                 name="bio"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg">Bio (Optional)</FormLabel>
+                    <FormLabel className="text-lg">Bio</FormLabel>
                     <FormControl>
                       <Textarea placeholder="Tell us a bit about yourself..." className="min-h-[100px]" {...field} />
                     </FormControl>
@@ -270,7 +274,7 @@ export default function UserProfilePage() {
                 name="birthdate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel className="text-lg mb-1">Date of Birth (Optional)</FormLabel>
+                    <FormLabel className="text-lg mb-1">Date of Birth</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -353,12 +357,12 @@ export default function UserProfilePage() {
                 </CardContent>
               </Card>
               
-              <div className="flex justify-between items-center space-x-4 pt-4">
-                <Button type="submit" size="sm" className="flex-1 md:flex-none" disabled={isLoading}>
+              <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4 pt-4">
+                <Button type="submit" size="sm" className="w-full sm:w-auto" disabled={isLoading}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Save Profile
+                  Save 
                 </Button>
-                <Button onClick={logout} variant="destructive" size="sm" className="flex-1 md:flex-none">
+                <Button onClick={logout} variant="destructive" size="sm" className="w-full sm:w-auto">
                   <LogOut className="mr-2 h-4 w-4" />
                   Log Out
                 </Button>
