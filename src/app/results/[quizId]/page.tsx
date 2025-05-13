@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation"; // useRouter removed as it's not used after changes
+import { useParams } from "next/navigation"; 
 import { useQuiz } from "@/contexts/QuizContext";
 import { ResultDisplay } from "@/components/quiz/ResultDisplay";
 import { Loader2, AlertTriangle, Home } from "lucide-react";
@@ -14,23 +13,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 export default function ResultsPage() {
   const params = useParams();
   const quizId = params.quizId as string;
-  const { activeQuiz, isLoadingQuiz, loadQuizFromStorage, allQuizzes } = useQuiz(); // clearActiveQuiz removed, router removed
+  const { activeQuiz, isLoadingQuiz, loadQuizFromStorage, allQuizzes } = useQuiz(); 
   const [isClient, setIsClient] = useState(false);
-  // const router = useRouter(); // Removed, as direct navigation back to quiz isn't strictly needed here if completedAt is source of truth
 
   useEffect(() => {
     setIsClient(true);
     if (quizId) {
-      const loadedQuiz = loadQuizFromStorage(quizId);
-      // Optionally, if a quiz is loaded but NOT completed, you might redirect.
-      // However, `ResultDisplay` will likely not render correctly anyway if `completedAt` is missing.
-      // This check is more for ensuring `activeQuiz` is set if this page is directly navigated to.
-      if (loadedQuiz && !loadedQuiz.completedAt) {
-        // console.warn(`Quiz ${quizId} loaded on results page but not completed. Consider redirecting or handling.`);
-        // router.replace(`/quiz/${quizId}`); // This line was previously here, could be reinstated if strict redirection is desired
-      }
+      // Call loadQuizFromStorage to ensure activeQuiz is set if the user navigates directly.
+      // The function reference `loadQuizFromStorage` comes from the useQuiz context.
+      // By not including `loadQuizFromStorage` or `allQuizzes` in the dependency array here,
+      // we prevent the effect from re-running if `loadQuizFromStorage`'s identity changes
+      // due to `allQuizzes` updating (which can happen if `loadQuizFromStorage` itself
+      // modifies `allQuizzes`, e.g., by setting `startedAt`).
+      // This effect should primarily react to `quizId` changing.
+      loadQuizFromStorage(quizId);
     }
-  }, [quizId, loadQuizFromStorage]); // activeQuiz removed from dependencies as it might cause loops if it changes due to loadQuizFromStorage
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quizId]); 
 
 
   if (!isClient || isLoadingQuiz) {
@@ -70,5 +69,3 @@ export default function ResultsPage() {
 
   return <ResultDisplay quiz={quizToDisplay} />;
 }
-
-
