@@ -122,11 +122,12 @@ export async function getLeaderboardUsers(limitCount: number = 10): Promise<User
   // If you see an error in the Firebase console logs or in the browser console
   // similar to "The query requires an index. You can create it here: ...",
   // please follow the link provided in the error message to create the necessary index.
-  // The index will likely be on the 'users' collection, with fields:
+  // Based on the error message: "FirebaseError: The query requires an index. ... create_composite=Cklwcm9qZWN0cy9uZXd2Mi02OGM1MC9kYXRhYmFzZXMvKGRlZmF1bHQpL2NvbGxlY3Rpb25Hcm91cHMvdXNlcnMvaW5kZXhlcy9fEAEaDgoKdG90YWxTY29yZRACGhQKEHF1aXp6ZXNDb21wbGV0ZWQQAhoMCghfX25hbWVfXxAC"
+  // The index will likely be on the 'users' collection (collection group query), with fields:
   // 1. totalScore (Descending)
   // 2. quizzesCompleted (Descending)
-  // 3. __name__ (Ascending or Descending, usually Ascending is fine for tie-breaking)
-  // The error message provides the exact link like:
+  // 3. __name__ (Ascending)
+  // The error message provides the exact link:
   // https://console.firebase.google.com/v1/r/project/YOUR_PROJECT_ID/firestore/indexes?create_composite=...
   const q = query(
     usersRef, 
@@ -158,7 +159,7 @@ export async function getLeaderboardUsers(limitCount: number = 10): Promise<User
   } catch (error) {
     console.error("Error fetching leaderboard users:", error);
     if (error instanceof Error && (error.message.includes('firestore/indexes') || ((error as any).code === 'failed-precondition' && error.message.includes('query requires an index')))) {
-      console.warn("Firestore index missing for leaderboard query. Please create the required composite index in your Firebase console. The error message often provides a direct link. The index needed is likely for the 'users' collection, ordering by 'totalScore' (descending), then 'quizzesCompleted' (descending).");
+      console.warn("Firestore index missing for leaderboard query. Please create the required composite index in your Firebase console using the link provided in the error message. The index needed is for the 'users' collection (or collection group 'users'), ordering by 'totalScore' (descending), then 'quizzesCompleted' (descending), then by document ID (__name__) (ascending).");
     }
     return [];
   }
@@ -171,15 +172,11 @@ export async function recordUserLogin(uid: string): Promise<void> {
   const today = new Date();
   const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
 
-  // Optional: Check if a login for today already exists to prevent multiple entries per day if desired
-  // For simplicity, this example adds a log for every login event.
-  // If you want to track "active days" rather than "number of logins", you might want to upsert based on the 'date'.
-
   try {
     await addDoc(activityLogRef, {
       uid: uid,
       timestamp: serverTimestamp() as Timestamp,
-      date: dateString, // Storing date string for easier querying by date range
+      date: dateString, 
     });
   } catch (error) {
     console.error("Error recording user login activity:", error);
@@ -190,10 +187,20 @@ export async function getUserLoginActivity(uid: string, year: number): Promise<U
   const db = getDb();
   const activityLogRef = collection(db, 'users', uid, 'activityLog');
   
-  // Create date range for the given year
   const startDate = startOfYear(new Date(year, 0, 1));
   const endDate = endOfYear(new Date(year, 11, 31));
 
+  // IMPORTANT: This query requires a composite index in Firestore.
+  // If you see an error in the Firebase console logs or in the browser console
+  // similar to "The query requires an index. You can create it here: ...",
+  // please follow the link provided in the error message to create the necessary index.
+  // Based on the error message: "FirebaseError: The query requires an index. ... create_composite=Ck9wcm9qZWN0cy9uZXd2Mi02OGM1MC9kYXRhYmFzZXMvKGRlZmF1bHQpL2NvbGxlY3Rpb25Hcm91cHMvYWN0aXZpdHlMb2cvaW5kZXhlcy9fEAEaBwoDdWlkEAEaDQoJdGltZXN0YW1wEAEaDAoIX19uYW1lX18QAQ"
+  // The index will likely be on the 'activityLog' subcollection (collection group query), with fields:
+  // 1. uid (Ascending)
+  // 2. timestamp (Ascending)
+  // 3. __name__ (Ascending)
+  // The error message provides the exact link:
+  // https://console.firebase.google.com/v1/r/project/YOUR_PROJECT_ID/firestore/indexes?create_composite=...
   const q = query(
     activityLogRef,
     where('uid', '==', uid),
@@ -212,8 +219,9 @@ export async function getUserLoginActivity(uid: string, year: number): Promise<U
   } catch (error) {
     console.error(`Error fetching user activity for year ${year}:`, error);
      if (error instanceof Error && (error.message.includes('firestore/indexes') || ((error as any).code === 'failed-precondition' && error.message.includes('query requires an index')))) {
-      console.warn(`Firestore index missing for activity log query. Please create a composite index for the 'activityLog' subcollection (under 'users'). The index needed is likely on 'uid' (ascending), then 'timestamp' (ascending).`);
+      console.warn(`Firestore index missing for activity log query. Please create the required composite index in your Firebase console using the link provided in the error message. The index needed is for the 'activityLog' subcollection (under 'users', queried as a collection group), on fields 'uid' (ascending), then 'timestamp' (ascending), then by document ID (__name__) (ascending).`);
     }
     return [];
   }
 }
+
