@@ -11,7 +11,7 @@ import { QuizProgressBar } from "@/components/quiz/QuizProgressBar";
 // For this iteration, the primary visible timer will be per-question, driven by activeQuiz.perQuestionTimeSeconds
 import { QuizTimer } from "@/components/quiz/QuizTimer"; 
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, CheckSquare, Loader2, AlertTriangle, Home, TimerIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckSquare, Loader2, AlertTriangle, Home, TimerIcon, HelpCircleIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Link from "next/link";
@@ -153,20 +153,30 @@ export default function QuizPage() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <Card className="shadow-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">{activeQuiz.topic} Quiz</CardTitle>
-          <div className="flex justify-center items-center gap-4 text-lg text-muted-foreground">
-            <span>Difficulty: <span className="capitalize font-semibold text-primary">{activeQuiz.difficulty}</span></span>
+        <CardHeader className="flex flex-row justify-between items-center">
+          <div> {/* Left side */}
+            <CardTitle className="text-3xl font-bold">{activeQuiz.topic} Quiz</CardTitle>
+            <CardDescription className="text-md text-muted-foreground">
+              Difficulty: <span className="capitalize font-semibold text-primary">{activeQuiz.difficulty}</span>
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-x-3 text-base"> {/* Right side - "time and question number line" */}
+            <div className="flex items-center">
+                <HelpCircleIcon className="h-5 w-5 mr-1 text-primary" />
+                <span className="font-medium">
+                {activeQuiz.currentQuestionIndex + 1}/{activeQuiz.questions.length}
+                </span>
+            </div>
             {activeQuiz.timeLimitMinutes !== undefined && activeQuiz.timeLimitMinutes > 0 && overallTimeLeft !== null && (
                 <div className="flex items-center">
                     <TimerIcon className="h-5 w-5 mr-1 text-primary" />
-                    <span>Total Left: {formatOverallTime(overallTimeLeft)}</span>
+                    <span>{formatOverallTime(overallTimeLeft)}</span>
                 </div>
             )}
-             {activeQuiz.timeLimitMinutes === 0 && (
-                 <div className="flex items-center">
-                    <TimerIcon className="h-5 w-5 mr-1 text-primary" />
-                    <span>No Overall Time Limit</span>
+            {activeQuiz.timeLimitMinutes === 0 && ( // No overall time limit
+                <div className="flex items-center">
+                  <TimerIcon className="h-5 w-5 mr-1 text-primary" />
+                  <span>No Limit</span>
                 </div>
             )}
           </div>
@@ -180,8 +190,8 @@ export default function QuizPage() {
       {currentQ && (
         <QuizDisplay
           question={currentQ}
-          questionNumber={activeQuiz.currentQuestionIndex + 1}
-          totalQuestions={activeQuiz.questions.length}
+          questionNumber={activeQuiz.currentQuestionIndex + 1} // Still pass for potential internal use or if design changes
+          totalQuestions={activeQuiz.questions.length} // Still pass for potential internal use
           onAnswer={handleAnswer}
           isSubmitted={!!activeQuiz.completedAt}
           showFeedback={false} // No feedback during the quiz

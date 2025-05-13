@@ -124,6 +124,7 @@ export function QuizDisplay({
         }
         
         const errorCode = event.error || "unknown_error";
+        // Log more detailed error information to the console for developers
         console.warn(
           `Speech synthesis error. Code: ${errorCode}. Utterance: "${event.utterance?.text?.substring(0,50)}..."`,
           "Full event:", event
@@ -133,11 +134,11 @@ export function QuizDisplay({
         // Check if event.error is a non-empty string before appending
         if (event.error && typeof event.error === 'string' && event.error.trim() !== "") {
             userMessage += ` Reason: ${event.error}. Please check browser permissions and TTS settings.`;
-        } else if (event.error) { // If event.error is an object or other non-string type
-             userMessage += ` Error code: ${event.error}. Please check browser permissions and TTS settings.`;
-        }
-         else {
-            // If event.error is null, undefined, or an empty string
+        } else if (event.error && typeof event.error === 'object' && 'message' in event.error && typeof event.error.message === 'string') {
+            userMessage += ` Reason: ${event.error.message}. Please check browser permissions and TTS settings.`;
+        } else if (event.error) { 
+             userMessage += ` Error code: ${errorCode}. Please check browser permissions and TTS settings.`;
+        } else {
             userMessage += " An unspecified Text-to-Speech error occurred.";
         }
         toast({ title: "Speech Error", description: userMessage, variant: "destructive" });
@@ -154,10 +155,8 @@ export function QuizDisplay({
       <CardHeader className="relative">
         <div className="flex justify-between items-start"> {/* items-start to align title and icons block at the top */}
             <div className="flex-grow mr-2">
-                 <CardDescription className="text-base">
-                    Question {questionNumber} of {totalQuestions}
-                </CardDescription>
-                <CardTitle className="text-2xl leading-relaxed mt-1">{question.question}</CardTitle>
+                {/* CardDescription for "Question X of Y" removed, handled by parent QuizPage */}
+                <CardTitle className="text-2xl leading-relaxed">{question.question}</CardTitle>
             </div>
             <div className="flex flex-col items-end space-y-1 shrink-0"> {/* Container for TTS and compact timer */}
                 {accessibility.textToSpeech && (
