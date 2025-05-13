@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { getUserLoginActivity, type UserActivityLog } from '@/lib/firestoreUtils';
+import { getUserLoginActivityForYear, type UserActivityLog } from '@/lib/firestoreUtils'; // Changed import
 import {
   startOfYear,
   endOfYear,
@@ -42,7 +42,7 @@ export function ActivityHeatmap({ userId }: ActivityHeatmapProps) {
     async function fetchData() {
       if (!userId) return;
       setIsLoading(true);
-      const data = await getUserLoginActivity(userId, selectedYear);
+      const data = await getUserLoginActivityForYear(userId, selectedYear); // Changed function call
       setActivityData(data);
       setIsLoading(false);
     }

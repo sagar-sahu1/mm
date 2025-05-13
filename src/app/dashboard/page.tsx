@@ -8,15 +8,23 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuiz } from '@/contexts/QuizContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, UserCircle, BarChart3, ListChecks, Lightbulb, Link2, CalendarDays } from 'lucide-react';
-import type { Quiz } from '@/types';
-import { ActivityHeatmap } from '@/components/dashboard/ActivityHeatmap'; // Import the heatmap
+import { Loader2, UserCircle, ListChecks, Lightbulb, Link2, CalendarDays, BarChartHorizontalBig, PieChartIcon } from 'lucide-react';
+import type { Quiz, QuizDifficulty } from '@/types';
+import { ActivityHeatmap } from '@/components/dashboard/ActivityHeatmap';
+import { LoginStreakDisplay } from '@/components/dashboard/LoginStreakDisplay';
+import { QuizDifficultyPieChart } from '@/components/dashboard/QuizDifficultyPieChart';
+import { getUniqueLoginDates, calculateUserLoginStreak, getWeeklyLoginStatus } from '@/lib/firestoreUtils';
+import { QUIZ_DIFFICULTY_LEVELS } from '@/lib/constants';
 
 export default function DashboardPage() {
   const { currentUser, loading: authLoading } = useAuth();
   const { allQuizzes } = useQuiz();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
+
+  const [loginStreak, setLoginStreak] = useState(0);
+  const [weeklyStatus, setWeeklyStatus] = useState<boolean[]>(Array(7).fill(false));
+  const [isStreakLoading, setIsStreakLoading] = useState(true);
 
   useEffect(() => {
     setIsClient(true);
@@ -27,6 +35,20 @@ export default function DashboardPage() {
       router.push('/login?redirect=/dashboard');
     }
   }, [isClient, authLoading, currentUser, router]);
+
+  useEffect(() => {
+    if (currentUser && isClient) {
+      setIsStreakLoading(true);
+      getUniqueLoginDates(currentUser.uid)
+        .then(uniqueDates => {
+          const today = new Date();
+          setLoginStreak(calculateUserLoginStreak(uniqueDates));
+          setWeeklyStatus(getWeeklyLoginStatus(uniqueDates, today));
+        })
+        .catch(console.error)
+        .finally(() => setIsStreakLoading(false));
+    }
+  }, [currentUser, isClient]);
 
   if (!isClient || authLoading || !currentUser) {
     return (
@@ -49,8 +71,14 @@ export default function DashboardPage() {
 
   const uniqueTopicsExplored = new Set(completedQuizzes.map(quiz => quiz.topic.toLowerCase())).size;
 
+  const difficultyDistribution = QUIZ_DIFFICULTY_LEVELS.map(level => {
+    const count = completedQuizzes.filter(quiz => quiz.difficulty === level.value).length;
+    return { name: level.label, value: count };
+  }).filter(d => d.value > 0);
+
+
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       <Card className="shadow-xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -61,7 +89,7 @@ export default function DashboardPage() {
             Here's your MindMash activity overview.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-6 md:p-8 grid md:grid-cols-3 gap-6">
+        <CardContent className="p-6 md:p-8 grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="text-center shadow-md">
             <CardHeader>
               <CardTitle className="text-xl">Quizzes Completed</CardTitle>
@@ -86,23 +114,38 @@ export default function DashboardPage() {
               <p className="text-4xl font-bold text-primary">{uniqueTopicsExplored}</p>
             </CardContent>
           </Card>
+           {isStreakLoading ? (
+             <Card className="text-center shadow-md flex items-center justify-center min-h-[150px]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+             </Card>
+           ) : (
+            <LoginStreakDisplay streak={loginStreak} weeklyStatus={weeklyStatus} />
+           )}
         </CardContent>
       </Card>
 
-      <Card className="shadow-xl">
-        <CardHeader>
-          <CardTitle className="text-2xl font-semibold flex items-center">
-            <CalendarDays className="mr-3 h-7 w-7 text-primary" />
-            Your Activity
-          </CardTitle>
-          <CardDescription>
-            A look at your login activity over the past year.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-4 md:p-6">
-          {currentUser && <ActivityHeatmap userId={currentUser.uid} />}
-        </CardContent>
-      </Card>
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <Card className="shadow-xl h-full">
+            <CardHeader>
+              <CardTitle className="text-2xl font-semibold flex items-center">
+                <CalendarDays className="mr-3 h-7 w-7 text-primary" />
+                Your Login Activity
+              </CardTitle>
+              <CardDescription>
+                Heatmap of your login activity over the past year.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 md:p-6">
+              {currentUser && <ActivityHeatmap userId={currentUser.uid} />}
+            </CardContent>
+          </Card>
+        </div>
+        <div className="lg:col-span-1">
+           <QuizDifficultyPieChart data={difficultyDistribution} />
+        </div>
+      </div>
+
 
       <Card className="shadow-xl">
         <CardHeader>
@@ -129,3 +172,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
