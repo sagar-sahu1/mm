@@ -143,7 +143,6 @@ export default function QuizPage() {
                 currentActiveQuiz.currentQuestionIndex = index; // This will be local state, needs context update
              }
              // This is problematic. For now, progress bar is more visual than functional for direct nav.
-             // For now, let's make progress bar nav disabled or less direct.
              // For now, clicking progress bar won't navigate to avoid complex state sync issues without proper context methods.
              console.log("Navigate to question (visual only for now):", index + 1);
           }
@@ -193,7 +192,9 @@ export default function QuizPage() {
   );
 }
 
-export const metadata = {
-  title: "Take Quiz",
-  description: "Engage in an interactive quiz on your chosen topic.",
-};
+// Removed metadata export as it's not allowed in client components
+// export const metadata = {
+//   title: "Take Quiz",
+//   description: "Engage in an interactive quiz on your chosen topic.",
+// };
+
