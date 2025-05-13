@@ -12,9 +12,7 @@ import {
   UserPlus, 
   LayoutDashboard, 
   Lightbulb,
-  Settings,
-  ShieldCheck,
-  HelpCircle
+  Home // Added Home icon
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -25,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function Header() {
   const { currentUser, logout, loading } = useAuth();
@@ -38,6 +37,12 @@ export function Header() {
         </Link>
         <nav className="flex items-center space-x-1 sm:space-x-2">
           <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
+            <Link href="/" className="flex items-center">
+              <Home className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
+              Home
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
             <Link href="/create-quiz" className="flex items-center">
               <Lightbulb className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
               Create Quiz
@@ -50,12 +55,18 @@ export function Header() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full">
-                      <UserCircle className="h-6 w-6" />
+                       <Avatar className="h-8 w-8">
+                        {/* currentUser.photoURL can be added here later if available */}
+                        <AvatarImage src={currentUser.photoURL || undefined} alt={currentUser.displayName || currentUser.email || "User"} />
+                        <AvatarFallback>
+                          <UserCircle className="h-6 w-6" />
+                        </AvatarFallback>
+                      </Avatar>
                       <span className="sr-only">Open user menu</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuLabel>{currentUser.displayName || currentUser.email}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link href="/profile" className="flex items-center w-full">
