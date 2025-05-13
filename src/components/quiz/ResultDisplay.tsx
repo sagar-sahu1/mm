@@ -5,7 +5,7 @@ import type { Quiz } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { CheckCircle, XCircle, Download, RotateCcw, Share2, Home, Trophy, LayoutDashboard } from "lucide-react";
+import { CheckCircle, XCircle, Download, RotateCcw, Share2, Home, Trophy, LayoutDashboard, ShieldAlert } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
 import { QuizDisplay } from "./QuizDisplay";
@@ -46,6 +46,18 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
         doc.text(`Challenged by: ${quiz.challengerName}`, margin, yPosition);
         yPosition += lineHeight;
       }
+      
+      if (quiz.quizTerminationReason && quiz.quizTerminationReason !== "completed") {
+        doc.setTextColor(255, 0, 0); // Red for termination reason
+        let reasonText = "Quiz Terminated: ";
+        if (quiz.quizTerminationReason === "cheating") reasonText += "Suspicious Activity";
+        else if (quiz.quizTerminationReason === "time_up") reasonText += "Time Ran Out";
+        else reasonText += quiz.quizTerminationReason;
+        doc.text(reasonText, margin, yPosition);
+        yPosition += lineHeight;
+        doc.setTextColor(0, 0, 0); // Reset color
+      }
+
 
       // Add score
       doc.setFontSize(14);
@@ -55,35 +67,43 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
       // Add questions and answers
       doc.setFontSize(12);
       quiz.questions.forEach((q, index) => {
-        if (yPosition > pageHeight - margin * 2) { // Check for page break
+        if (yPosition > pageHeight - margin * 2.5) { // Check for page break, ensure more space
           doc.addPage();
           yPosition = margin;
         }
 
         doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0); // Reset text color
+        doc.setTextColor(0, 0, 0); 
         
         const questionText = `Q${index + 1}: ${q.question}`;
         const questionLines = doc.splitTextToSize(questionText, doc.internal.pageSize.width - margin * 2);
         doc.text(questionLines, margin, yPosition);
-        yPosition += questionLines.length * lineHeight;
+        yPosition += questionLines.length * (lineHeight -1); // Slightly reduce line height for wrapped text
 
         const userAnswerText = `Your Answer: ${q.userAnswer || "Not Answered"}`;
-        doc.setTextColor(q.isCorrect ? 0 : (q.userAnswer ? 255 : 100), q.isCorrect ? 150 : 0, q.isCorrect ? 0 : 0); // Green for correct, Red for incorrect user answer, Gray for unanswered
+         // User answer color: Red if wrong & answered, Gray if unanswered, Black if correct (implicitly handled by default)
+        if (!q.isCorrect && q.userAnswer) {
+            doc.setTextColor(220, 53, 69); // Destructive/Red
+        } else if (!q.userAnswer) {
+            doc.setTextColor(108, 117, 125); // Muted/Gray
+        } else {
+            doc.setTextColor(25, 135, 84); // Success/Green for correct user answer
+        }
         const userAnswerLines = doc.splitTextToSize(userAnswerText, doc.internal.pageSize.width - margin * 2);
         doc.text(userAnswerLines, margin + 5, yPosition);
-        yPosition += userAnswerLines.length * lineHeight;
+        yPosition += userAnswerLines.length * (lineHeight-1);
+
 
         if (!q.isCorrect) {
-          doc.setTextColor(0, 150, 0); // Green for correct answer
+          doc.setTextColor(25, 135, 84); // Green for correct answer
           const correctAnswerText = `Correct Answer: ${q.correctAnswer}`;
           const correctAnswerLines = doc.splitTextToSize(correctAnswerText, doc.internal.pageSize.width - margin * 2);
           doc.text(correctAnswerLines, margin + 5, yPosition);
-          yPosition += correctAnswerLines.length * lineHeight;
+          yPosition += correctAnswerLines.length * (lineHeight-1);
         }
         
         doc.setTextColor(0,0,0); // Reset to black
-        yPosition += lineHeight; // Extra space between questions
+        yPosition += lineHeight * 1.5; // Extra space between questions
       });
 
       doc.save(`MindMash_Quiz_Results_${quiz.topic.replace(/\s+/g, '_')}.pdf`);
@@ -103,7 +123,11 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
 
   const handleShareResults = () => {
     let shareText = `I scored ${scorePercentage}% on the ${quiz.topic} quiz on MindMash!`;
-    if (quiz.challengerName) {
+    if (quiz.quizTerminationReason === "cheating") {
+      shareText = `My ${quiz.topic} quiz on MindMash was terminated due to suspicious activity.`;
+    } else if (quiz.quizTerminationReason === "time_up") {
+      shareText = `Time ran out on my ${quiz.topic} quiz on MindMash! Score: ${scorePercentage}%.`;
+    } else if (quiz.challengerName) {
       shareText = `I scored ${scorePercentage}% on a ${quiz.topic} quiz challenged by ${quiz.challengerName} on MindMash!`;
     }
     const shareUrl = `${window.location.origin}/results/${quiz.id}`;
@@ -133,6 +157,15 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
               <Trophy className="h-5 w-5 mr-2 text-amber-500" />
               You were challenged by <strong>{quiz.challengerName}</strong>!
             </p>
+          )}
+           {quiz.quizTerminationReason && quiz.quizTerminationReason !== "completed" && (
+            <div className={`mt-3 p-3 rounded-md text-lg font-semibold flex items-center justify-center gap-2
+              ${quiz.quizTerminationReason === "cheating" ? "bg-destructive/10 text-destructive border border-destructive" : "bg-amber-500/10 text-amber-700 dark:text-amber-500 border border-amber-500"}`}>
+              <ShieldAlert className="h-6 w-6" />
+              Quiz Terminated: 
+              {quiz.quizTerminationReason === "cheating" && " Suspicious Activity"}
+              {quiz.quizTerminationReason === "time_up" && " Time Ran Out"}
+            </div>
           )}
         </CardHeader>
         <CardContent className="space-y-6">
@@ -194,10 +227,12 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
                       question={q}
                       questionNumber={index + 1}
                       totalQuestions={quiz.questions.length}
-                      onAnswer={() => {}} // No action needed here
-                      isSubmitted={true} // Always true in results
-                      showFeedback={true} // Show feedback in results
-                      // No per-question timer needed in results display
+                      onAnswer={() => {}} 
+                      isSubmitted={true} 
+                      showFeedback={true} 
+                      perQuestionDuration={0} // No timer in results view
+                      onPerQuestionTimeUp={() => {}} // No action
+                      timerKey={`result-q-${q.id}`}
                     />
                 </AccordionContent>
               </AccordionItem>
@@ -208,4 +243,3 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
     </div>
   );
 }
-

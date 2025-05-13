@@ -1,16 +1,22 @@
+
 'use client';
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuiz } from "@/contexts/QuizContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { QuizDisplay } from "@/components/quiz/QuizDisplay";
 import { QuizProgressBar } from "@/components/quiz/QuizProgressBar";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, CheckSquare, Loader2, AlertTriangle, Home, TimerIcon, HelpCircleIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckSquare, Loader2, AlertTriangle, Home, TimerIcon, HelpCircleIcon, EyeOff, ShieldAlert, Maximize } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
+import { logCheatingActivity, getCheatingFlagsForQuiz } from "@/lib/firestoreUtils";
+import type { ActivityType } from "@/types";
 
+const CHEATING_FLAG_LIMIT = 3;
 
 export default function QuizPage() {
   const params = useParams();
@@ -25,21 +31,135 @@ export default function QuizPage() {
     previousQuestion, 
     navigateToQuestion, 
     submitQuiz,
-    markQuizAsStarted 
+    markQuizAsStarted,
+    updateActiveQuizCheatingFlags
   } = useQuiz();
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
   
   const [isClient, setIsClient] = useState(false);
   const [overallTimeLeft, setOverallTimeLeft] = useState<number | null>(null);
+  const [cheatingFlagsCount, setCheatingFlagsCount] = useState(0);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const quizPageRef = useRef<HTMLDivElement>(null);
+
+  const incrementAndLogCheatingFlag = useCallback(async (activityType: ActivityType, details?: string) => {
+    if (!currentUser || !activeQuiz || activeQuiz.completedAt) return;
+
+    console.warn(`Anti-cheating: ${activityType} detected.`);
+    await logCheatingActivity(currentUser.uid, activeQuiz.id, activityType, details);
+    
+    setCheatingFlagsCount(prev => {
+      const newCount = prev + 1;
+      updateActiveQuizCheatingFlags(newCount); // Update context/localStorage
+      toast({
+        title: "Suspicious Activity Detected",
+        description: `Warning: ${activityType.replace('_', ' ')}. Further suspicious activity may lead to quiz termination. Flags: ${newCount}/${CHEATING_FLAG_LIMIT}`,
+        variant: "destructive",
+        duration: 7000,
+      });
+      return newCount;
+    });
+  }, [currentUser, activeQuiz, toast, updateActiveQuizCheatingFlags]);
+
 
   useEffect(() => {
     setIsClient(true);
+    if (typeof document !== 'undefined') {
+      setIsFullScreen(!!document.fullscreenElement);
+    }
   }, []);
 
   useEffect(() => {
     if (isClient && quizId) {
-      loadQuizFromStorage(quizId);
+      const loadedQuiz = loadQuizFromStorage(quizId);
+      if (loadedQuiz && loadedQuiz.cheatingFlags) {
+        setCheatingFlagsCount(loadedQuiz.cheatingFlags);
+      }
     }
   }, [isClient, quizId, loadQuizFromStorage]);
+
+  // Fullscreen Management
+  const requestFullScreen = useCallback(() => {
+    if (quizPageRef.current && !document.fullscreenElement) {
+      quizPageRef.current.requestFullscreen().catch(err => {
+        toast({
+          title: "Fullscreen Recommended",
+          description: "For the best experience and to prevent interruptions, please enable fullscreen mode.",
+          variant: "default"
+        });
+        console.error("Error attempting to enable full-screen mode:", err);
+      });
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (!isClient || !activeQuiz || activeQuiz.completedAt) return;
+
+    const handleFullscreenChange = () => {
+      const currentlyFullscreen = !!document.fullscreenElement;
+      if (isFullScreen && !currentlyFullscreen) { // Exited fullscreen
+        incrementAndLogCheatingFlag('fullscreen_exit');
+        toast({
+            title: "Fullscreen Exited",
+            description: "You have exited fullscreen mode. Please re-enter to continue the quiz without issues.",
+            variant: "destructive"
+        });
+      }
+      setIsFullScreen(currentlyFullscreen);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        incrementAndLogCheatingFlag('tab_switch');
+      }
+    };
+
+    const handleCopyPaste = (event: ClipboardEvent) => {
+      incrementAndLogCheatingFlag(event.type as ActivityType);
+      event.preventDefault();
+      toast({ title: "Action Disabled", description: `${event.type} is disabled during the quiz.`, variant: "destructive" });
+    };
+    
+    const handleContextMenu = (event: MouseEvent) => {
+        incrementAndLogCheatingFlag('context_menu');
+        event.preventDefault();
+        toast({ title: "Action Disabled", description: "Right-click is disabled during the quiz.", variant: "destructive" });
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('copy', handleCopyPaste);
+    document.addEventListener('paste', handleCopyPaste);
+    document.addEventListener('cut', handleCopyPaste);
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    // Attempt to enter fullscreen when quiz loads
+    // requestFullScreen(); // Consider if this should be manually triggered by user action instead
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('copy', handleCopyPaste);
+      document.removeEventListener('paste', handleCopyPaste);
+      document.removeEventListener('cut', handleCopyPaste);
+      document.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }, [isClient, activeQuiz, incrementAndLogCheatingFlag, isFullScreen, requestFullScreen, toast]);
+  
+  // Check cheating flags threshold
+  useEffect(() => {
+    if (cheatingFlagsCount >= CHEATING_FLAG_LIMIT && activeQuiz && !activeQuiz.completedAt) {
+      toast({
+        title: "Quiz Terminated",
+        description: "Your quiz has been terminated due to excessive suspicious activities.",
+        variant: "destructive",
+        duration: 10000,
+      });
+      submitQuiz("cheating");
+    }
+  }, [cheatingFlagsCount, activeQuiz, submitQuiz, toast]);
+
 
   useEffect(() => {
     if (isClient && activeQuiz && activeQuiz.id === quizId && 
@@ -60,7 +180,7 @@ export default function QuizPage() {
     } else {
       setOverallTimeLeft(null); 
     }
-  }, [activeQuiz?.id, activeQuiz?.completedAt, activeQuiz?.timeLimitMinutes, activeQuiz?.startedAt]); // Rerun when activeQuiz or its relevant properties change
+  }, [activeQuiz?.id, activeQuiz?.completedAt, activeQuiz?.timeLimitMinutes, activeQuiz?.startedAt]); 
 
 
   useEffect(() => {
@@ -70,7 +190,8 @@ export default function QuizPage() {
 
     if (overallTimeLeft <= 0) {
       if (activeQuiz && !activeQuiz.completedAt) { 
-        submitQuiz();
+        toast({ title: "Time's Up!", description: "The overall quiz time has ended.", variant: "default" });
+        submitQuiz("time_up");
       }
       return;
     }
@@ -80,7 +201,7 @@ export default function QuizPage() {
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [overallTimeLeft, activeQuiz, submitQuiz]);
+  }, [overallTimeLeft, activeQuiz, submitQuiz, toast]);
 
 
   const handleAnswer = (answer: string) => {
@@ -89,9 +210,9 @@ export default function QuizPage() {
     }
   };
 
-  const handleSubmitQuiz = () => {
+  const handleSubmitQuizConfirm = () => {
     if (activeQuiz && !activeQuiz.completedAt) {
-      submitQuiz();
+      submitQuiz("completed");
     }
   };
 
@@ -104,17 +225,16 @@ export default function QuizPage() {
 
   const handlePerQuestionTimeUp = useCallback(() => {
     if (activeQuiz && !activeQuiz.completedAt) {
+       toast({ title: "Question Time Up!", description: "Moving to the next question.", variant: "default" });
       if (activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1) {
         nextQuestion();
       } else {
-        // If it's the last question and per-question timer runs out, submit the quiz.
-        // The overall timer will also handle submission if it runs out first.
-        if (!activeQuiz.completedAt) {
-          submitQuiz();
+        if (!activeQuiz.completedAt) { // If it's the last question and per-question timer runs out
+          submitQuiz("time_up"); // Submit the whole quiz as time_up
         }
       }
     }
-  }, [activeQuiz, nextQuestion, submitQuiz]);
+  }, [activeQuiz, nextQuestion, submitQuiz, toast]);
 
   const currentQ = activeQuiz?.questions[activeQuiz.currentQuestionIndex];
   const perQuestionDuration = activeQuiz?.perQuestionTimeSeconds || 0;
@@ -159,10 +279,10 @@ export default function QuizPage() {
 
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div ref={quizPageRef} className="space-y-6 max-w-6xl mx-auto mindmash-quiz-area">
       <Card className="shadow-md bg-card">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold">{activeQuiz.topic} Quiz}</CardTitle>
+          <CardTitle className="text-3xl font-bold">{activeQuiz.topic} Quiz</CardTitle>
           <CardDescription className="text-md text-muted-foreground">
             Difficulty: <span className="capitalize font-semibold text-primary">{activeQuiz.difficulty}</span>
             {activeQuiz.subtopic && (<> | Subtopic: <span className="capitalize font-semibold text-primary">{activeQuiz.subtopic}</span></>)}
@@ -220,12 +340,12 @@ export default function QuizPage() {
                     <AlertDialogTitle>Ready to submit your answers?</AlertDialogTitle>
                     <AlertDialogDescription>
                       Once submitted, you won't be able to change your answers.
-                      The quiz will also auto-submit if the overall timer runs out.
+                      The quiz will also auto-submit if the overall timer runs out or suspicious activity is detected.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Review Answers</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleSubmitQuiz} className="bg-green-600 hover:bg-green-700">
+                    <AlertDialogAction onClick={handleSubmitQuizConfirm} className="bg-green-600 hover:bg-green-700">
                       Yes, Submit Quiz
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -237,8 +357,13 @@ export default function QuizPage() {
 
         <div className="lg:w-1/3 space-y-6 p-4 border rounded-lg shadow-md bg-blue-500/10 border-blue-500">
           <Card className="bg-card">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-xl">Quiz Status</CardTitle>
+              {!isFullScreen && (
+                <Button onClick={requestFullScreen} variant="outline" size="sm" title="Enter Fullscreen">
+                  <Maximize className="h-4 w-4" />
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-sm">
@@ -252,18 +377,25 @@ export default function QuizPage() {
                   <span className={`font-semibold ${overallTimeLeft <= 60 ? 'text-destructive animate-pulse' : 'text-foreground'}`}>{formatOverallTime(overallTimeLeft)}</span>
                 </div>
               )}
-              {/* Show "No Limit" if timeLimitMinutes is 0 or undefined and quiz hasn't started with a timer */}
               {(activeQuiz.timeLimitMinutes === undefined || activeQuiz.timeLimitMinutes <= 0) && (!activeQuiz.startedAt || overallTimeLeft === null) && (
                  <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center text-muted-foreground"><TimerIcon className="h-4 w-4 mr-2 text-primary" /> Overall Time:</span>
                   <span className="font-semibold text-foreground">No Limit</span>
                 </div>
               )}
+               <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center text-muted-foreground"><ShieldAlert className="h-4 w-4 mr-2 text-destructive" /> Cheating Flags:</span>
+                  <span className={`font-semibold ${cheatingFlagsCount > 0 ? 'text-destructive' : 'text-foreground'}`}>{cheatingFlagsCount} / {CHEATING_FLAG_LIMIT}</span>
+                </div>
             </CardContent>
           </Card>
           
            {activeQuiz.completedAt && (
-             <div className="text-center text-green-600 font-semibold p-4 border-green-500 bg-green-500/10 rounded-lg shadow">Quiz Completed!</div>
+             <div className="text-center text-green-600 font-semibold p-4 border-green-500 bg-green-500/10 rounded-lg shadow">
+                Quiz {activeQuiz.quizTerminationReason === "cheating" ? "Terminated" : "Completed"}!
+                {activeQuiz.quizTerminationReason === "cheating" && " (Due to suspicious activity)"}
+                {activeQuiz.quizTerminationReason === "time_up" && " (Time ran out)"}
+             </div>
            )}
           
           <QuizProgressBar

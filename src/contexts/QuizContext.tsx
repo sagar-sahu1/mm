@@ -1,14 +1,15 @@
+
 'use client';
 
 import type { ReactNode} from 'react';
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
-import type { Quiz, QuizQuestion } from "@/types";
+import type { Quiz, QuizQuestion, QuizTerminationReason } from "@/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { v4 as uuidv4 } from 'uuid';
 import type { GenerateQuizQuestionsInput } from '@/ai/flows/generate-quiz-questions';
 
 
-interface StartQuizData extends Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions' | 'config' | 'timeLimitMinutes' | 'perQuestionTimeSeconds' | 'startedAt'> {
+interface StartQuizData extends Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions' | 'config' | 'timeLimitMinutes' | 'perQuestionTimeSeconds' | 'startedAt' | 'quizTerminationReason' | 'cheatingFlags'> {
   questions: Omit<QuizQuestion, 'id'>[];
   config: GenerateQuizQuestionsInput; 
   challengerName?: string;
@@ -27,13 +28,14 @@ interface QuizContextType {
   nextQuestion: () => void;
   previousQuestion: () => void;
   navigateToQuestion: (questionIndex: number) => void;
-  submitQuiz: () => void;
+  submitQuiz: (reason?: QuizTerminationReason) => void;
   loadQuizFromStorage: (quizId: string) => Quiz | null;
   markQuizAsStarted: (quizId: string) => void;
   clearActiveQuiz: () => void;
   allQuizzes: Quiz[];
   deleteQuiz: (quizId: string) => void;
   clearAllCompletedQuizzes: () => void;
+  updateActiveQuizCheatingFlags: (count: number) => void;
 }
 
 const QuizContext = createContext<QuizContextType | undefined>(undefined);
@@ -49,11 +51,9 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     const enrichedQuestions = quizData.questions.map(q => ({...q, id: uuidv4()}));
     
     let perQuestionTimeSeconds: number | undefined = undefined;
-    // Calculate perQuestionTimeSeconds only if timeLimit is set and there are questions
     if (quizData.timeLimit && quizData.timeLimit > 0 && enrichedQuestions.length > 0) {
       const totalSecondsForQuiz = quizData.timeLimit * 60;
       perQuestionTimeSeconds = Math.floor(totalSecondsForQuiz / enrichedQuestions.length);
-      // Ensure a minimum reasonable time per question, e.g., 10 seconds
       if (perQuestionTimeSeconds < 10) {
         perQuestionTimeSeconds = 10; 
       }
@@ -74,7 +74,8 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       perQuestionTimeSeconds: perQuestionTimeSeconds, 
       additionalInstructions: quizData.additionalInstructions,
       isPublic: quizData.isPublic,
-      // startedAt will be set by markQuizAsStarted when the quiz page loads
+      quizTerminationReason: undefined,
+      cheatingFlags: 0,
     };
     setActiveQuiz(newQuiz); 
     setAllQuizzes(prev => [newQuiz, ...prev.filter(q => q.id !== newQuizId)]);
@@ -129,7 +130,7 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     });
   }, [setAllQuizzes]);
 
-  const submitQuiz = useCallback(() => {
+  const submitQuiz = useCallback((reason: QuizTerminationReason = "completed") => {
     setActiveQuiz(prevQuiz => {
       if (!prevQuiz || prevQuiz.completedAt) return prevQuiz; 
       let score = 0;
@@ -141,9 +142,10 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       const completedQuiz = {
         ...prevQuiz,
         questions: updatedQuestions,
-        score,
+        score: reason === "cheating" ? 0 : score, // Score 0 if terminated for cheating
         completedAt: Date.now(),
         totalTimeTaken: prevQuiz.startedAt ? Math.floor((Date.now() - prevQuiz.startedAt) / 1000) : undefined,
+        quizTerminationReason: reason,
       };
       setAllQuizzes(prev => prev.map(q => q.id === completedQuiz.id ? completedQuiz : q));
       localStorage.removeItem('mindmash-active-quiz-temp');
@@ -203,6 +205,15 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     }
   }, [activeQuiz, setAllQuizzes]);
 
+  const updateActiveQuizCheatingFlags = useCallback((count: number) => {
+    setActiveQuiz(prevQuiz => {
+      if (!prevQuiz || prevQuiz.completedAt) return prevQuiz;
+      const updatedQuiz = { ...prevQuiz, cheatingFlags: count };
+      setAllQuizzes(prevAll => prevAll.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
+      return updatedQuiz;
+    });
+  }, [setAllQuizzes]);
+
   useEffect(() => {
     if (activeQuiz && !activeQuiz.completedAt) {
       localStorage.setItem('mindmash-active-quiz-temp', JSON.stringify(activeQuiz));
@@ -248,7 +259,8 @@ export function QuizProvider({ children }: { children: ReactNode }) {
         clearActiveQuiz, 
         allQuizzes, 
         deleteQuiz, 
-        clearAllCompletedQuizzes 
+        clearAllCompletedQuizzes,
+        updateActiveQuizCheatingFlags
     }}>
       {children}
     </QuizContext.Provider>

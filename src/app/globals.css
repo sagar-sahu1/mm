@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,7 +9,7 @@ body {
 
 @layer base {
   :root {
-    --background: 210 17% 98%; /* Light BG: #F9FAFB */
+    --background: 200 20% 98%; /* Soothing Blue Light BG (#F5F5F5 is 0 0% 96%) -> HSL(200, 20%, 98%) is approx #F5F7FA */
     --foreground: 215 28% 17%; /* Text: #1F2937 */
 
     --card: 0 0% 100%; /* White cards */
@@ -17,16 +18,16 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 215 28% 17%; /* Text: #1F2937 */
 
-    --primary: 243 75% 59%;    /* Primary: Indigo #4F46E5 */
-    --primary-foreground: 0 0% 100%; /* White for good contrast on Indigo */
+    --primary: 217 91% 60%;    /* Soothing Blue Primary: #64B5F6 HSL(207, 82%, 69%) */
+    --primary-foreground: 0 0% 100%; /* White for good contrast on Blue */
 
     --secondary: 210 17% 94%; /* A bit darker than light BG for secondary elements */
     --secondary-foreground: 215 28% 17%; /* Dark text for secondary */
 
-    --muted: 210 17% 96%; /* Slightly darker than BG or similar */
+    --muted: 210 17% 96%; 
     --muted-foreground: 215 15% 45%; /* Muted text */
 
-    --accent: 174 80% 43%;     /* Accent: Teal #14B8A6 */
+    --accent: 174 65% 51%;     /* Vibrant Teal Accent: #26A69A HSL(174, 63%, 37%) -> Using a slightly lighter HSL(174, 65%, 51%) #4DB6AC */
     --accent-foreground: 0 0% 100%; /* White for good contrast on Teal */
 
     --destructive: 0 84.2% 60.2%;
@@ -34,7 +35,7 @@ body {
 
     --border: 210 17% 90%;
     --input: 210 17% 95%;
-    --ring: 243 75% 59%;    /* Primary for ring */
+    --ring: 217 91% 60%;    /* Primary for ring */
 
     --radius: 0.5rem;
 
@@ -46,33 +47,33 @@ body {
   }
 
   .dark {
-    --background: 217 49% 11%; /* Dark BG: #0F172A */
+    --background: 222 47% 11%; /* Dark BG, e.g., #111827 */
     --foreground: 210 17% 95%; /* Light text for dark BG */
 
-    --card: 217 49% 15%; /* Slightly lighter than dark BG for cards */
+    --card: 222 47% 15%; /* Slightly lighter than dark BG for cards, e.g., #1F2937 */
     --card-foreground: 210 17% 95%; /* Light text for dark BG */
 
-    --popover: 217 49% 15%;
+    --popover: 222 47% 15%;
     --popover-foreground: 210 17% 95%;
 
-    --primary: 243 75% 65%;    /* Lighter Indigo for dark mode */
-    --primary-foreground: 217 49% 11%; /* Dark text (Dark BG color) for contrast */
+    --primary: 217 91% 70%;    /* Lighter Soothing Blue for dark mode */
+    --primary-foreground: 222 47% 11%; /* Dark text (Dark BG color) for contrast */
 
-    --secondary: 217 40% 20%; /* Darker secondary */
+    --secondary: 222 40% 20%; /* Darker secondary */
     --secondary-foreground: 210 17% 95%;
 
-    --muted: 217 40% 17%;
+    --muted: 222 40% 17%;
     --muted-foreground: 210 17% 65%;
 
-    --accent: 174 70% 50%;     /* Brighter Teal for dark mode */
-    --accent-foreground: 217 49% 11%; /* Dark text (Dark BG color) for contrast */
+    --accent: 174 70% 60%;     /* Brighter Teal for dark mode */
+    --accent-foreground: 222 47% 11%; /* Dark text (Dark BG color) for contrast */
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 217 40% 25%;
-    --input: 217 40% 22%;
-    --ring: 243 75% 65%; /* Lighter primary for ring */
+    --border: 222 40% 25%;
+    --input: 222 40% 22%;
+    --ring: 217 91% 70%; /* Lighter primary for ring */
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
@@ -141,4 +142,20 @@ body {
   --border: 0 0% 70%;
   --input: 0 0% 15%;
   --ring: 300 100% 50%;
+}
+
+/* Anti-cheating: Disable text selection */
+.disable-text-selection {
+  -webkit-user-select: none; /* Safari */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* IE10+/Edge */
+  user-select: none; /* Standard */
+}
+
+/* Apply text selection disabling specifically to quiz area or globally as needed */
+.mindmash-quiz-area, .mindmash-quiz-area * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }

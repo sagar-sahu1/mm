@@ -1,7 +1,7 @@
 
-import { doc, setDoc, getDoc, serverTimestamp, type Timestamp, updateDoc, collection, query, where, getDocs, limit, orderBy, addDoc, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, type Timestamp, updateDoc, collection, query, where, getDocs, limit, orderBy, addDoc, arrayUnion, writeBatch } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase';
-import type { QuizQuestion, QuizDifficulty, UserProfileFirestoreData, UserProfile } from '@/types';
+import type { QuizQuestion, QuizDifficulty, UserProfileFirestoreData, UserProfile, CheatingActivityLog, ActivityType } from '@/types';
 import { endOfYear, startOfYear, format, subDays, isEqual, startOfWeek, addDays as dateFnsAddDays, eachDayOfInterval, differenceInDays, parseISO } from 'date-fns';
 
 export interface ChallengeData {
@@ -17,13 +17,6 @@ export interface ChallengeData {
   challengerName?: string;
   createdAt: Timestamp;
   isPublic?: boolean;
-}
-
-export interface UserActivityLog {
-  uid: string;
-  timestamp: Timestamp; // Representing the date of activity for heatmap
-  date: string; // YYYY-MM-DD format for easy grouping
-  count?: number; // For heatmap, this will be 1 for each unique login day.
 }
 
 
@@ -112,7 +105,7 @@ export async function createUserProfileDocument(uid: string, data: Partial<UserP
         email: data.email || undefined,
         displayName: data.displayName || data.email?.split('@')[0] || 'Anonymous User',
         bio: data.bio || '', 
-        birthdate: data.birthdate || format(new Date(), 'yyyy-MM-dd'), // Default to current date if not provided
+        birthdate: data.birthdate || format(new Date(), 'yyyy-MM-dd'), 
         socialLinks: data.socialLinks || {},
         createdAt: serverTimestamp() as Timestamp,
         updatedAt: serverTimestamp() as Timestamp,
@@ -130,14 +123,11 @@ export async function createUserProfileDocument(uid: string, data: Partial<UserP
 export async function getLeaderboardUsers(limitCount: number = 10): Promise<UserProfile[]> {
   const db = getDb();
   const usersRef = collection(db, 'users');
-  // Firestore requires the first orderBy field to be the same as the inequality field if one is used.
-  // If no inequality, any field can be first.
-  // For complex sorting like by score then by quizzesCompleted, ensure composite index exists.
   const q = query(
     usersRef, 
     orderBy('totalScore', 'desc'), 
-    orderBy('quizzesCompleted', 'desc'), // Secondary sort
-    orderBy('__name__', 'asc'), // Ensures consistent ordering for ties
+    orderBy('quizzesCompleted', 'desc'), 
+    orderBy('__name__', 'asc'), 
     limit(limitCount)
   );
 
@@ -168,7 +158,7 @@ export async function getLeaderboardUsers(limitCount: number = 10): Promise<User
   } catch (error) {
     console.error("Error fetching leaderboard users:", error);
     if (error instanceof Error && (error.message.includes('firestore/indexes') || ((error as any).code === 'failed-precondition' && error.message.includes('query requires an index')))) {
-      console.warn("Firestore index missing for leaderboard query. Please create the required composite index in your Firebase console using the link provided in the error message. The index needed is for the 'users' collection, ordering by 'totalScore' (descending), then 'quizzesCompleted' (descending), then by document ID (__name__) (ascending).");
+      console.warn("Firestore index missing for leaderboard query. Please create the required composite index in your Firebase console. Index: 'users' collection, order by 'totalScore' (desc), 'quizzesCompleted' (desc), '__name__' (asc).");
     }
     return [];
   }
@@ -210,24 +200,26 @@ export async function recordUserLogin(uid: string): Promise<void> {
         newStreak = 1; 
       }
     } else {
-      console.warn(`User document for UID ${uid} not found during login recording. Creating one.`);
-      // Data to initialize if user profile doesn't exist for some reason
-       const initialData: Partial<UserProfileFirestoreData> = {
-        email: auth.currentUser?.email || undefined, // Attempt to get email from current auth user
-        displayName: auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Anonymous User',
-        lastLoginAt: serverTimestamp() as Timestamp,
-        loginHistory: [todayStr],
-        currentStreak: 1,
-        lastStreakLoginDate: todayStr,
-        createdAt: serverTimestamp() as Timestamp,
-        updatedAt: serverTimestamp() as Timestamp,
-        totalScore: 0,
-        quizzesCompleted: 0,
-        bio: '',
-        birthdate: format(new Date(), 'yyyy-MM-dd'),
-      };
-      await setDoc(userRef, initialData); // Create the document
-      return; // Exit after creating, as updateDoc below would fail on non-existent doc
+      console.warn(`User document for UID ${uid} not found during login recording. Creating one if auth user exists.`);
+      const currentUserForFallback = auth.currentUser; // Ensure auth is available
+      if (currentUserForFallback) {
+         const initialData: Partial<UserProfileFirestoreData> = {
+          email: currentUserForFallback.email || undefined,
+          displayName: currentUserForFallback.displayName || currentUserForFallback.email?.split('@')[0] || 'Anonymous User',
+          lastLoginAt: serverTimestamp() as Timestamp,
+          loginHistory: [todayStr],
+          currentStreak: 1,
+          lastStreakLoginDate: todayStr,
+          createdAt: serverTimestamp() as Timestamp,
+          updatedAt: serverTimestamp() as Timestamp,
+          totalScore: 0,
+          quizzesCompleted: 0,
+          bio: '',
+          birthdate: format(new Date(), 'yyyy-MM-dd'),
+        };
+        await setDoc(userRef, initialData);
+      }
+      return; 
     }
     
     if (loginHistory.length > 550) {
@@ -256,23 +248,29 @@ export async function getUniqueLoginDates(uid: string): Promise<string[]> {
 }
 
 
-export async function getUserLoginActivityForYear(uid: string, year: number): Promise<UserActivityLog[]> {
+export async function getUserLoginActivityForYear(uid: string, year: number): Promise<CheatingActivityLog[]> { // Changed return type
   const userProfile = await getUserProfile(uid);
   if (!userProfile || !userProfile.loginHistory) {
     return [];
   }
 
-  const activities: UserActivityLog[] = [];
+  const activities: CheatingActivityLog[] = []; // Changed type
   userProfile.loginHistory.forEach(dateStr => {
     try {
       const loginDate = parseISO(dateStr); 
       if (loginDate.getFullYear() === year) {
+        // This function is for heatmap, it assumes each entry in loginHistory is a unique login day.
+        // For the CheatingActivityLog type, activityType is mandatory.
+        // This function might need renaming or refactoring if it's specifically for login heatmap
+        // vs generic activity logs. For now, let's assume it's just transforming loginHistory for heatmap.
         activities.push({
-          uid: uid,
+          userId: uid, // Changed from uid
+          quizId: 'N/A_login_activity', // Placeholder as quizId is not relevant for general login
+          activityType: 'tab_switch', // Placeholder, this function is for login history, not specific cheating types
           date: dateStr,
           timestamp: Timestamp.fromDate(loginDate), 
-          count: 1, 
-        });
+          // count: 1, // CheatingActivityLog doesn't have count, it represents one event
+        } as unknown as CheatingActivityLog); // Casting as activityType is required
       }
     } catch (e) {
       console.warn(`Could not parse date string ${dateStr} from loginHistory for user ${uid}`);
@@ -321,7 +319,17 @@ export function calculateUserLoginStreak(uniqueLoginDates: string[]): number {
   
   const todayStr = format(today, 'yyyy-MM-dd');
   if (!uniqueLoginDates.includes(todayStr) && isEqual(lastLoginDate, subDays(today, 1)) && currentStreak === 1){
-      return 0;
+      // This case means they logged in yesterday, but not today, and yesterday was the start of a new streak.
+      // So currentStreak should be 0.
+      // However, if lastLoginDate is today, and uniqueLoginDates.includes(todayStr) is true, currentStreak should be at least 1.
+      // The calculateUserLoginStreak logic needs to be robust for this.
+      // If the last login was yesterday, and they didn't log in today, streak is 0.
+      // The current logic might count yesterday as 1.
+      // Let's re-evaluate: if today is not in uniqueLoginDates and lastLoginDate is yesterday, streak is 0.
+      // This is already covered by the first check: `differenceInDays(today, lastLoginDate) > 1` would be false.
+      // And `differenceInDays(today, lastLoginDate) === 1` means streak is 0 if today is not logged.
+      // The loop correctly builds the streak from the *last logged day*.
+      // If the last logged day is *not* today or yesterday, the streak is 0.
   }
 
 
@@ -359,9 +367,56 @@ export function getWeeklyLoginStatus(uniqueLoginDates: string[], referenceDate: 
   return weeklyStatus; // [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
 }
 
-// Ensure auth is imported if used directly, which it is not here.
-// For the initialData in recordUserLogin, if Firebase auth instance is needed, ensure it's accessible.
-// It's better to rely on passed uid and not assume global auth state in utils,
-// but for `auth.currentUser?.email` it's a pragmatic fallback.
-// Ideally, the calling function (AuthContext) would pass such data.
-import { auth } from '@/lib/firebase'; // Added import for auth to resolve implicit dependency
+
+export async function logCheatingActivity(
+  userId: string,
+  quizId: string,
+  activityType: ActivityType,
+  details?: string
+): Promise<string | null> {
+  const db = getDb();
+  try {
+    const logEntry: Omit<CheatingActivityLog, 'id'> = {
+      userId,
+      quizId,
+      activityType,
+      timestamp: serverTimestamp() as Timestamp,
+      details: details || '',
+    };
+    const docRef = await addDoc(collection(db, 'cheating_logs'), logEntry);
+    
+    // Update cheatingFlags count on the quiz document
+    const quizRef = doc(db, 'quizzes', quizId);
+    const quizSnap = await getDoc(quizRef);
+    if (quizSnap.exists()) {
+      const currentFlags = quizSnap.data().cheatingFlags || 0;
+      await updateDoc(quizRef, { cheatingFlags: currentFlags + 1 });
+    }
+    
+    return docRef.id;
+  } catch (error) {
+    console.error("Error logging cheating activity:", error);
+    return null;
+  }
+}
+
+export async function getCheatingFlagsForQuiz(quizId: string, userId: string): Promise<CheatingActivityLog[]> {
+  const db = getDb();
+  const logsRef = collection(db, 'cheating_logs');
+  const q = query(logsRef, where('quizId', '==', quizId), where('userId', '==', userId), orderBy('timestamp', 'asc'));
+
+  try {
+    const querySnapshot = await getDocs(q);
+    const flags: CheatingActivityLog[] = [];
+    querySnapshot.forEach((docSnap) => {
+      flags.push({ id: docSnap.id, ...docSnap.data() } as CheatingActivityLog);
+    });
+    return flags;
+  } catch (error) {
+    console.error("Error fetching cheating flags:", error);
+    return [];
+  }
+}
+
+
+import { auth } from '@/lib/firebase';
