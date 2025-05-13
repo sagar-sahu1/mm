@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { QuizQuestion } from "@/types";
@@ -17,9 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { QuizTimer } from "./QuizTimer"; // For compact timer
-import { DEFAULT_QUIZ_TIMER_SECONDS } from "@/lib/constants";
-
+// QuizTimer is no longer imported or used here
 
 interface QuizDisplayProps {
   question: QuizQuestion;
@@ -27,9 +24,7 @@ interface QuizDisplayProps {
   totalQuestions: number;
   onAnswer: (answer: string) => void;
   isSubmitted: boolean; 
-  showFeedback: boolean; // New prop to control feedback visibility
-  perQuestionTimeSeconds?: number; // For the compact timer
-  onPerQuestionTimeUp?: () => void; // For the compact timer
+  showFeedback: boolean; 
 }
 
 export function QuizDisplay({ 
@@ -39,8 +34,6 @@ export function QuizDisplay({
   onAnswer, 
   isSubmitted, 
   showFeedback,
-  perQuestionTimeSeconds,
-  onPerQuestionTimeUp
 }: QuizDisplayProps) {
   const [selectedValue, setSelectedValue] = useState<string | undefined>(question.userAnswer);
   const { activeQuiz } = useQuiz(); 
@@ -52,7 +45,6 @@ export function QuizDisplay({
 
   useEffect(() => {
     setSelectedValue(question.userAnswer);
-    // Cancel any ongoing speech for the previous question
     if (window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
@@ -60,7 +52,6 @@ export function QuizDisplay({
     }
   }, [question.id, question.userAnswer]);
 
-  // Cleanup speech synthesis on component unmount
   useEffect(() => {
     return () => {
       if (window.speechSynthesis && window.speechSynthesis.speaking && utteranceRef.current) {
@@ -103,15 +94,13 @@ export function QuizDisplay({
     }
     
     if (window.speechSynthesis) {
-      // Cancel any previous speech before starting a new one
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(question.question);
-      utteranceRef.current = utterance; // Store reference to the current utterance
+      utteranceRef.current = utterance;
 
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => {
-        // Only update state if this is the utterance that just ended
         if (utteranceRef.current === utterance) {
           setIsSpeaking(false);
           utteranceRef.current = null;
@@ -124,23 +113,22 @@ export function QuizDisplay({
         }
         
         const errorCode = event.error || "unknown_error";
-        // Log more detailed error information to the console for developers
-        console.warn(
+        console.warn( // Changed from console.error to console.warn to reduce noise for common TTS issues
           `Speech synthesis error. Code: ${errorCode}. Utterance: "${event.utterance?.text?.substring(0,50)}..."`,
           "Full event:", event
         );
         
         let userMessage = "Could not play audio for the question.";
-        // Check if event.error is a non-empty string before appending
-        if (event.error && typeof event.error === 'string' && event.error.trim() !== "") {
-            userMessage += ` Reason: ${event.error}. Please check browser permissions and TTS settings.`;
+        if (errorCode === 'synthesis-failed' || errorCode === 'audio-busy' || errorCode === 'network') {
+             userMessage += ` TTS service might be unavailable or busy. Please try again later.`;
+        } else if (event.error && typeof event.error === 'string' && event.error.trim() !== "") {
+            userMessage += ` Reason: ${event.error}.`;
         } else if (event.error && typeof event.error === 'object' && 'message' in event.error && typeof event.error.message === 'string') {
-            userMessage += ` Reason: ${event.error.message}. Please check browser permissions and TTS settings.`;
-        } else if (event.error) { 
-             userMessage += ` Error code: ${errorCode}. Please check browser permissions and TTS settings.`;
+            userMessage += ` Reason: ${event.error.message}.`;
         } else {
-            userMessage += " An unspecified Text-to-Speech error occurred.";
+            userMessage += ` Error code: ${errorCode}.`;
         }
+        userMessage += " Check browser permissions and TTS settings."
         toast({ title: "Speech Error", description: userMessage, variant: "destructive" });
       };
       window.speechSynthesis.speak(utterance);
@@ -153,12 +141,11 @@ export function QuizDisplay({
   return (
     <Card className="w-full shadow-lg">
       <CardHeader className="relative">
-        <div className="flex justify-between items-start"> {/* items-start to align title and icons block at the top */}
+        <div className="flex justify-between items-start">
             <div className="flex-grow mr-2">
-                {/* CardDescription for "Question X of Y" removed, handled by parent QuizPage */}
                 <CardTitle className="text-2xl leading-relaxed">{question.question}</CardTitle>
             </div>
-            <div className="flex flex-col items-end space-y-1 shrink-0"> {/* Container for TTS and compact timer */}
+            <div className="flex flex-col items-end space-y-1 shrink-0">
                 {accessibility.textToSpeech && (
                     <TooltipProvider>
                         <Tooltip>
@@ -173,18 +160,7 @@ export function QuizDisplay({
                         </Tooltip>
                     </TooltipProvider>
                 )}
-                {/* Compact Timer */}
-                {onPerQuestionTimeUp && perQuestionTimeSeconds !== undefined && perQuestionTimeSeconds > 0 && !activeQuiz?.completedAt && (
-                  <div className="w-24"> {/* Adjust width as needed */}
-                    <QuizTimer
-                      timerKey={`compact-${question.id}`}
-                      duration={perQuestionTimeSeconds}
-                      onTimeUp={onPerQuestionTimeUp}
-                      isPaused={isSubmitted || !!activeQuiz?.completedAt}
-                      compact={true} // Add a compact prop to QuizTimer for minimal display
-                    />
-                  </div>
-                )}
+                {/* Per-question timer has been moved to the parent QuizPage */}
             </div>
         </div>
       </CardHeader>
@@ -229,4 +205,3 @@ export function QuizDisplay({
     </Card>
   );
 }
-

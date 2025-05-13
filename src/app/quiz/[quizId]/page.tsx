@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -6,9 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuiz } from "@/contexts/QuizContext";
 import { QuizDisplay } from "@/components/quiz/QuizDisplay";
 import { QuizProgressBar } from "@/components/quiz/QuizProgressBar";
-// Main QuizTimer component is now for the overall quiz timer if applicable.
-// Per-question timer is compact and integrated into QuizDisplay or optionally shown separately.
-// For this iteration, the primary visible timer will be per-question, driven by activeQuiz.perQuestionTimeSeconds
+import { QuizTimer } from "@/components/quiz/QuizTimer"; // For per-question timer
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CheckSquare, Loader2, AlertTriangle, Home, TimerIcon, HelpCircleIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -83,6 +80,8 @@ export default function QuizPage() {
 
   const handlePerQuestionTimeUp = useCallback(() => {
     if (activeQuiz && !activeQuiz.completedAt) {
+      // Optionally auto-select a blank answer or specific "time up" answer
+      // answerQuestion(activeQuiz.questions[activeQuiz.currentQuestionIndex].id, ""); 
       if (activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1) {
         nextQuestion();
       } else {
@@ -93,13 +92,22 @@ export default function QuizPage() {
 
   const currentQ = activeQuiz?.questions[activeQuiz.currentQuestionIndex];
 
-  let perQuestionDuration = DEFAULT_QUIZ_TIMER_SECONDS;
+  let perQuestionDuration = DEFAULT_QUIZ_TIMER_SECONDS; // Default if no quiz-specific setting
   if (activeQuiz) {
-    if (typeof activeQuiz.timeLimitMinutes === 'number' && activeQuiz.timeLimitMinutes === 0) { 
-      perQuestionDuration = activeQuiz.perQuestionTimeSeconds || DEFAULT_QUIZ_TIMER_SECONDS;
-    } else if (activeQuiz.perQuestionTimeSeconds && activeQuiz.perQuestionTimeSeconds > 0) {
-      perQuestionDuration = activeQuiz.perQuestionTimeSeconds;
-    }
+      // If overall time limit is explicitly "No Time Limit" (0 minutes), then perQuestionTime is independent.
+      if (activeQuiz.timeLimitMinutes === 0) { 
+          perQuestionDuration = activeQuiz.perQuestionTimeSeconds !== undefined && activeQuiz.perQuestionTimeSeconds > 0 
+                                  ? activeQuiz.perQuestionTimeSeconds 
+                                  : 0; // If 0 means no per-question limit when overall is also 0
+      } 
+      // If there's an overall time limit, and perQuestionTimeSeconds is set (calculated from overall limit)
+      else if (typeof activeQuiz.timeLimitMinutes === 'number' && activeQuiz.timeLimitMinutes > 0 && activeQuiz.perQuestionTimeSeconds !== undefined) {
+          perQuestionDuration = activeQuiz.perQuestionTimeSeconds;
+      } 
+      // Fallback if perQuestionTimeSeconds wasn't set or overall limit not applicable for this calculation
+      else {
+          perQuestionDuration = 0; // Default to no per-question timer if not otherwise specified by quiz config
+      }
   }
 
 
@@ -155,7 +163,7 @@ export default function QuizPage() {
       </Card>
 
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Green Box: Question Area */}
+        {/* Green Box: Question Area - Left Side */}
         <div className="lg:w-2/3 p-4 rounded-lg bg-green-500/10 border border-green-600/30 shadow-md">
           {currentQ && (
             <QuizDisplay
@@ -165,13 +173,11 @@ export default function QuizPage() {
               onAnswer={handleAnswer}
               isSubmitted={!!activeQuiz.completedAt}
               showFeedback={false} // Feedback shown on results page
-              perQuestionTimeSeconds={perQuestionDuration > 0 ? perQuestionDuration : undefined}
-              onPerQuestionTimeUp={handlePerQuestionTimeUp}
             />
           )}
         </div>
 
-        {/* Blue Box: Progress & Timer Area */}
+        {/* Blue Box: Progress & Timer Area - Right Side */}
         <div className="lg:w-1/3 p-4 rounded-lg bg-blue-500/10 border border-blue-600/30 shadow-md space-y-4">
           <Card>
             <CardHeader>
@@ -197,6 +203,21 @@ export default function QuizPage() {
               )}
             </CardContent>
           </Card>
+
+           {/* Per-Question Timer - Moved to Blue Box (Right Panel) */}
+          {currentQ && perQuestionDuration > 0 && !activeQuiz?.completedAt && (
+            <QuizTimer
+              timerKey={`per-q-${currentQ.id}`} // Key to reset timer on question change
+              duration={perQuestionDuration}
+              onTimeUp={handlePerQuestionTimeUp}
+              isPaused={!!activeQuiz?.completedAt}
+              compact={false} // Use the full display version for this placement
+            />
+          )}
+           {/* Display if no per-question time limit and not completed */}
+          {currentQ && perQuestionDuration <= 0 && !activeQuiz?.completedAt && (
+             <div className="text-center text-muted-foreground p-4 border rounded-lg shadow bg-card">No time limit for this question.</div>
+          )}
           
           <QuizProgressBar
             questions={activeQuiz.questions}
@@ -218,7 +239,7 @@ export default function QuizPage() {
         </Button>
 
         {activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1 ? (
-          <Button onClick={nextQuestion} size="lg" disabled={!!activeQuiz.completedAt}>
+          <Button onClick={nextQuestion} size="lg" disabled={!!activeQuiz.completedAt || !currentQ?.userAnswer}> {/* Disable if not answered */}
             Next <ChevronRight className="ml-2 h-5 w-5" />
           </Button>
         ) : (
@@ -228,7 +249,7 @@ export default function QuizPage() {
                 variant="default" 
                 size="lg" 
                 className="bg-green-600 hover:bg-green-700 text-white dark:text-primary-foreground"
-                disabled={!!activeQuiz.completedAt}
+                disabled={!!activeQuiz.completedAt || !currentQ?.userAnswer} /* Disable if not answered */
               >
                 <CheckSquare className="mr-2 h-5 w-5" /> Submit Quiz
               </Button>
@@ -254,4 +275,3 @@ export default function QuizPage() {
     </div>
   );
 }
-
