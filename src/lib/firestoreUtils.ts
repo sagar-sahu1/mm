@@ -112,7 +112,7 @@ export async function createUserProfileDocument(uid: string, data: Partial<UserP
         email: data.email || undefined,
         displayName: data.displayName || data.email?.split('@')[0] || 'Anonymous User',
         bio: data.bio || '', 
-        birthdate: data.birthdate || '',
+        birthdate: data.birthdate || format(new Date(), 'yyyy-MM-dd'), // Default to current date if not provided
         socialLinks: data.socialLinks || {},
         createdAt: serverTimestamp() as Timestamp,
         updatedAt: serverTimestamp() as Timestamp,
@@ -137,7 +137,7 @@ export async function getLeaderboardUsers(limitCount: number = 10): Promise<User
     usersRef, 
     orderBy('totalScore', 'desc'), 
     orderBy('quizzesCompleted', 'desc'), // Secondary sort
-    // orderBy('displayName', 'asc'), // Optional tertiary sort for tie-breaking if needed
+    orderBy('__name__', 'asc'), // Ensures consistent ordering for ties
     limit(limitCount)
   );
 
@@ -148,7 +148,6 @@ export async function getLeaderboardUsers(limitCount: number = 10): Promise<User
       const data = docSnap.data() as UserProfileFirestoreData;
       users.push({
         uid: docSnap.id,
-        // Ensure all fields from UserProfile are mapped
         email: data.email || null,
         displayName: data.displayName,
         photoURL: data.photoURL,
@@ -180,7 +179,7 @@ export async function recordUserLogin(uid: string): Promise<void> {
   const db = getDb();
   const userRef = doc(db, 'users', uid);
   const today = new Date();
-  const todayStr = format(today, 'yyyy-MM-DD');
+  const todayStr = format(today, 'yyyy-MM-dd');
 
   try {
     const userSnap = await getDoc(userRef);
@@ -192,34 +191,45 @@ export async function recordUserLogin(uid: string): Promise<void> {
       loginHistory = userData.loginHistory || [];
       if (!loginHistory.includes(todayStr)) {
         loginHistory.push(todayStr);
-        loginHistory.sort(); // Keep it sorted for easier processing if needed elsewhere
+        loginHistory.sort(); 
       }
 
       const currentStreak = userData.currentStreak || 0;
       const lastStreakLogin = userData.lastStreakLoginDate;
 
       if (lastStreakLogin) {
-        const yesterdayStr = format(subDays(today, 1), 'yyyy-MM-DD');
+        const yesterdayStr = format(subDays(today, 1), 'yyyy-MM-dd');
         if (lastStreakLogin === yesterdayStr) {
           newStreak = currentStreak + 1;
         } else if (lastStreakLogin === todayStr) {
-          newStreak = currentStreak; // Already logged in today, streak continues
+          newStreak = currentStreak; 
         } else {
-          newStreak = 1; // Streak broken
+          newStreak = 1; 
         }
       } else {
-        newStreak = 1; // First login or streak data missing
+        newStreak = 1; 
       }
     } else {
-      // This case should ideally be handled by createUserProfileDocument on signup.
-      // If a user document doesn't exist at login, something is amiss.
-      // For robustness, we could create it here, but it's better handled at signup.
-      console.warn(`User document for UID ${uid} not found during login recording.`);
-      loginHistory = [todayStr];
-      newStreak = 1;
+      console.warn(`User document for UID ${uid} not found during login recording. Creating one.`);
+      // Data to initialize if user profile doesn't exist for some reason
+       const initialData: Partial<UserProfileFirestoreData> = {
+        email: auth.currentUser?.email || undefined, // Attempt to get email from current auth user
+        displayName: auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Anonymous User',
+        lastLoginAt: serverTimestamp() as Timestamp,
+        loginHistory: [todayStr],
+        currentStreak: 1,
+        lastStreakLoginDate: todayStr,
+        createdAt: serverTimestamp() as Timestamp,
+        updatedAt: serverTimestamp() as Timestamp,
+        totalScore: 0,
+        quizzesCompleted: 0,
+        bio: '',
+        birthdate: format(new Date(), 'yyyy-MM-dd'),
+      };
+      await setDoc(userRef, initialData); // Create the document
+      return; // Exit after creating, as updateDoc below would fail on non-existent doc
     }
     
-    // Limit loginHistory size to avoid overly large documents, e.g., last ~1.5 years
     if (loginHistory.length > 550) {
       loginHistory = loginHistory.slice(loginHistory.length - 550);
     }
@@ -240,7 +250,7 @@ export async function recordUserLogin(uid: string): Promise<void> {
 export async function getUniqueLoginDates(uid: string): Promise<string[]> {
   const userProfile = await getUserProfile(uid);
   if (userProfile && userProfile.loginHistory) {
-    return userProfile.loginHistory.sort(); // Ensure sorted, though recordUserLogin attempts to sort
+    return userProfile.loginHistory.sort(); 
   }
   return [];
 }
@@ -255,19 +265,13 @@ export async function getUserLoginActivityForYear(uid: string, year: number): Pr
   const activities: UserActivityLog[] = [];
   userProfile.loginHistory.forEach(dateStr => {
     try {
-      const loginDate = parseISO(dateStr); // Assumes YYYY-MM-DD
+      const loginDate = parseISO(dateStr); 
       if (loginDate.getFullYear() === year) {
         activities.push({
           uid: uid,
           date: dateStr,
-          // For heatmap, timestamp ideally represents the start of the day for consistency.
-          // Firestore Timestamps are more precise, but for daily activity, this is okay.
-          // Creating a JS Date and then converting to Firestore Timestamp if needed:
-          // For this use case, we just need the date string for the heatmap.
-          // The 'timestamp' field in UserActivityLog here is a bit of a misnomer if we only have dates.
-          // Let's provide a pseudo-Timestamp by converting the date string.
           timestamp: Timestamp.fromDate(loginDate), 
-          count: 1, // Each unique date in loginHistory counts as 1 activity for the heatmap
+          count: 1, 
         });
       }
     } catch (e) {
@@ -283,24 +287,21 @@ export function calculateUserLoginStreak(uniqueLoginDates: string[]): number {
     return 0;
   }
   
-  // Ensure dates are sorted chronologically. getUniqueLoginDates should already do this.
   const sortedDates = [...new Set(uniqueLoginDates)].map(d => parseISO(d)).sort((a,b) => a.getTime() - b.getTime());
 
   if (sortedDates.length === 0) return 0;
 
   const today = new Date();
-  today.setHours(0,0,0,0); // Normalize today to start of day
+  today.setHours(0,0,0,0); 
 
-  // Check if the latest login is today or yesterday
   const lastLoginDate = sortedDates[sortedDates.length - 1];
   lastLoginDate.setHours(0,0,0,0);
 
   if (differenceInDays(today, lastLoginDate) > 1) {
-    return 0; // Last login was not today or yesterday, so streak is 0.
+    return 0; 
   }
 
   let currentStreak = 0;
-  // Iterate backwards from the last login date
   for (let i = sortedDates.length - 1; i >= 0; i--) {
     const dateToCheck = new Date(sortedDates[i]);
     dateToCheck.setHours(0,0,0,0);
@@ -310,26 +311,17 @@ export function calculateUserLoginStreak(uniqueLoginDates: string[]): number {
 
     if (isEqual(dateToCheck, expectedPreviousDate) || (i === sortedDates.length -1 && isEqual(dateToCheck, today))) {
         currentStreak++;
-    } else if (i === sortedDates.length -1 && isEqual(dateToCheck, subDays(today,1))) { // handles if last login was yesterday
+    } else if (i === sortedDates.length -1 && isEqual(dateToCheck, subDays(today,1))) { 
         currentStreak++;
     }
      else {
-      break; // Gap in dates, streak ends
+      break; 
     }
   }
   
-  // If the last login date in sortedDates is not today, and the streak calculation
-  // based on consecutive days means the streak should be 0 (e.g., last login was yesterday, but only yesterday)
-  if (!isEqual(lastLoginDate, today) && currentStreak === 1 && differenceInDays(today, lastLoginDate) === 1) {
-      // This logic means if they logged in *only* yesterday, the current streak is 1.
-      // If they didn't log in today, it should be 0.
-      // The `recordUserLogin` function's streak logic is more direct for live updates.
-      // This `calculateUserLoginStreak` is a fallback or for historical recalc.
-      // If today is not in login history, current streak is 0.
-      const todayStr = format(today, 'yyyy-MM-dd');
-      if (!uniqueLoginDates.includes(todayStr)){
-          return 0;
-      }
+  const todayStr = format(today, 'yyyy-MM-dd');
+  if (!uniqueLoginDates.includes(todayStr) && isEqual(lastLoginDate, subDays(today, 1)) && currentStreak === 1){
+      return 0;
   }
 
 
@@ -348,11 +340,11 @@ export function getWeeklyLoginStatus(uniqueLoginDates: string[], referenceDate: 
   
   const loginSet = new Set(uniqueLoginDates.map(dateStr => {
      try {
-      const dateObj = parseISO(dateStr); // Assumes 'YYYY-MM-DD'
+      const dateObj = parseISO(dateStr); 
       if (isNaN(dateObj.getTime())) {
         return null;
       }
-      return format(dateObj, 'yyyy-MM-DD');
+      return format(dateObj, 'yyyy-MM-dd');
     } catch (e) {
       return null;
     }
@@ -360,9 +352,16 @@ export function getWeeklyLoginStatus(uniqueLoginDates: string[], referenceDate: 
 
 
   const weeklyStatus = weekDays.map(day => {
-    const dayStr = format(day, 'yyyy-MM-DD');
+    const dayStr = format(day, 'yyyy-MM-dd');
     return loginSet.has(dayStr);
   });
 
   return weeklyStatus; // [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
 }
+
+// Ensure auth is imported if used directly, which it is not here.
+// For the initialData in recordUserLogin, if Firebase auth instance is needed, ensure it's accessible.
+// It's better to rely on passed uid and not assume global auth state in utils,
+// but for `auth.currentUser?.email` it's a pragmatic fallback.
+// Ideally, the calling function (AuthContext) would pass such data.
+import { auth } from '@/lib/firebase'; // Added import for auth to resolve implicit dependency
