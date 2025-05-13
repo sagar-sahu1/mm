@@ -92,11 +92,9 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfileFi
     ...data,
     updatedAt: serverTimestamp() as Timestamp,
   };
-  // Use setDoc with merge: true to create the document if it doesn't exist, or update if it does.
   await setDoc(userProfileRef, dataToUpdate, { merge: true });
 }
 
-// Example for creating a user profile document, typically on signup or first profile save.
 export async function createUserProfileDocument(uid: string, data: UserProfileFirestoreData): Promise<void> {
     const db = getDb();
     const userProfileRef = doc(db, 'users', uid);
@@ -108,15 +106,17 @@ export async function createUserProfileDocument(uid: string, data: UserProfileFi
     await setDoc(userProfileRef, profileDataWithTimestamp);
 }
 
-// Leaderboard function (Placeholder - requires more complex logic based on scoring criteria)
+// Leaderboard function
 export async function getLeaderboardUsers(limitCount: number = 10): Promise<UserProfile[]> {
   const db = getDb();
   const usersRef = collection(db, 'users');
-  // This is a simplified query. Real leaderboard might need to query based on aggregated scores,
-  // which could involve a separate 'userScores' collection or denormalized data.
-  // For now, let's assume 'users' collection has a 'totalScore' field or similar for ranking.
-  // This example assumes 'totalScore' and 'displayName' exist. Adapt as needed.
-  const q = query(usersRef, orderBy('displayName'), limit(limitCount)); // Placeholder: order by displayName
+  // Order by totalScore (descending) then by quizzesCompleted (descending as tie-breaker)
+  const q = query(
+    usersRef, 
+    orderBy('totalScore', 'desc'), 
+    orderBy('quizzesCompleted', 'desc'),
+    limit(limitCount)
+  );
 
   try {
     const querySnapshot = await getDocs(q);
@@ -131,12 +131,19 @@ export async function getLeaderboardUsers(limitCount: number = 10): Promise<User
         bio: data.bio,
         birthdate: data.birthdate,
         socialLinks: data.socialLinks,
-        // Add other fields like score, accuracy if available directly on user doc or from a related calculation
+        totalScore: data.totalScore || 0,
+        quizzesCompleted: data.quizzesCompleted || 0,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
       });
     });
     return users;
   } catch (error) {
     console.error("Error fetching leaderboard users:", error);
+    // Check for Firestore index errors specifically
+    if (error instanceof Error && error.message.includes('firestore/indexes')) {
+      console.warn("Firestore index missing for leaderboard query. Please create a composite index for 'users' collection on 'totalScore' (desc) and 'quizzesCompleted' (desc).");
+    }
     return [];
   }
 }

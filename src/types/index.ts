@@ -47,9 +47,10 @@ export interface UserProfile {
   bio?: string; // Firestore
   birthdate?: string; // ISO string "YYYY-MM-DD", Firestore
   socialLinks?: SocialLinks; // Firestore
-  // Potentially other app-specific fields from Firestore
   createdAt?: number; // Firestore, when profile doc was created
   updatedAt?: number; // Firestore, when profile doc was last updated
+  totalScore?: number; // Aggregated score for leaderboard
+  quizzesCompleted?: number; // Count of completed quizzes for leaderboard
 }
 
 // Data structure for Firestore 'users' collection documents
@@ -63,4 +64,6 @@ export interface UserProfileFirestoreData {
   email?: string; // Store email for easier querying/display if needed, though auth is source of truth
   createdAt?: number; 
   updatedAt?: number;
+  totalScore?: number; // Aggregated score for leaderboard
+  quizzesCompleted?: number; // Count of completed quizzes for leaderboard
 }

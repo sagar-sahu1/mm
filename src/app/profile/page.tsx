@@ -8,29 +8,29 @@ import * as z from "zod";
 import { format, parseISO } from 'date-fns';
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/providers/ThemeProvider";
+// useTheme removed as current app settings section is removed
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+// Label removed as it's implicitly used by FormLabel
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserCircle, LogOut, Loader2, CalendarIcon, UploadCloud, Github, Linkedin, Instagram } from "lucide-react";
+import { UserCircle, LogOut, Loader2, CalendarIcon, UploadCloud, Github, Linkedin, Instagram, Save } from "lucide-react"; // Added Save icon
 import { useToast } from "@/hooks/use-toast";
 import { getUserProfile, updateUserProfile, createUserProfileDocument } from "@/lib/firestoreUtils";
-import { getAppStorage } from "@/lib/firebase"; // Use getAppStorage
+import { getAppStorage } from "@/lib/firebase";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { UserProfileFirestoreData, SocialLinks } from "@/types";
-import { updateProfile as updateAuthProfile } from "firebase/auth"; // Firebase Auth function
+import { updateProfile as updateAuthProfile } from "firebase/auth";
 
 
 const profileFormSchema = z.object({
   displayName: z.string().min(2, "Display name must be at least 2 characters.").max(50, "Display name too long."),
-  photoFile: z.instanceof(File).optional().nullable(), // For new photo upload
+  photoFile: z.instanceof(File).optional().nullable(),
   bio: z.string().max(300, "Bio too long.").optional(),
   birthdate: z.date().optional().nullable(),
   socialLinks: z.object({
@@ -44,7 +44,6 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 export default function UserProfilePage() {
   const { currentUser, logout, loading: authLoading } = useAuth();
-  const { theme, accessibility } = useTheme(); // For display, not direct edit here
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -75,11 +74,10 @@ export default function UserProfilePage() {
               bio: profileData.bio || "",
               birthdate: profileData.birthdate ? parseISO(profileData.birthdate) : null,
               socialLinks: profileData.socialLinks || { github: "", linkedin: "", instagram: "" },
-              photoFile: null, // Reset photoFile, preview will use existing photoURL
+              photoFile: null,
             });
             setPhotoPreview(profileData.photoURL || currentUser.photoURL || null);
           } else {
-            // No profile in Firestore yet, use Auth data as defaults
             form.reset({
               displayName: currentUser.displayName || "",
               bio: "",
@@ -93,7 +91,7 @@ export default function UserProfilePage() {
         .catch(error => {
           console.error("Error fetching profile:", error);
           toast({ title: "Error", description: "Could not load profile data.", variant: "destructive" });
-           form.reset({ // Fallback to auth data on error
+           form.reset({ 
               displayName: currentUser.displayName || "",
               bio: "",
               birthdate: null,
@@ -118,10 +116,9 @@ export default function UserProfilePage() {
     if (!currentUser) return;
     setIsLoading(true);
 
-    let newPhotoURL = photoPreview; // Keep existing or previewed if no new file
+    let newPhotoURL = photoPreview;
 
     try {
-      // 1. Upload new photo if one was selected
       if (data.photoFile) {
         const storage = getAppStorage();
         const filePath = `profile-pictures/${currentUser.uid}/${data.photoFile.name}`;
@@ -130,43 +127,37 @@ export default function UserProfilePage() {
         newPhotoURL = await getDownloadURL(fileRef);
       }
 
-      // 2. Prepare data for Firestore
       const firestoreData: UserProfileFirestoreData = {
         displayName: data.displayName,
-        photoURL: newPhotoURL || undefined, // Use new URL or keep existing (or undefined)
+        photoURL: newPhotoURL || undefined,
         bio: data.bio || "",
         birthdate: data.birthdate ? format(data.birthdate, 'yyyy-MM-dd') : undefined,
         socialLinks: data.socialLinks,
-        email: currentUser.email || undefined, // Store email from auth
+        email: currentUser.email || undefined,
       };
       
-      // Check if profile exists to decide between create or update (updateUser handles both with merge)
       const existingProfile = await getUserProfile(currentUser.uid);
       if (existingProfile) {
         await updateUserProfile(currentUser.uid, firestoreData);
       } else {
         await createUserProfileDocument(currentUser.uid, { 
           ...firestoreData, 
-          createdAt: Date.now(), // Explicitly set for creation
+          createdAt: Date.now(), 
           updatedAt: Date.now() 
         });
       }
 
-
-      // 3. Update Firebase Auth profile (displayName and photoURL)
-      // Only update if they changed or if newPhotoURL is set
       const authUpdates: { displayName?: string; photoURL?: string } = {};
       if (data.displayName !== currentUser.displayName) {
         authUpdates.displayName = data.displayName;
       }
-      if (newPhotoURL && newPhotoURL !== (currentUser.photoURL || photoPreview)) { // Ensure newPhotoURL is different
+      if (newPhotoURL && newPhotoURL !== (currentUser.photoURL || photoPreview)) {
         authUpdates.photoURL = newPhotoURL;
       }
-      if (Object.keys(authUpdates).length > 0 && currentUser) { // Check currentUser again for safety
+      if (Object.keys(authUpdates).length > 0 && currentUser) {
          await updateAuthProfile(currentUser, authUpdates);
       }
       
-
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -205,11 +196,10 @@ export default function UserProfilePage() {
         <CardContent className="p-6 md:p-8">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              {/* Photo Upload */}
               <FormField
                 control={form.control}
                 name="photoFile"
-                render={({ field }) => ( // field is not directly used for input type file value
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-lg">Profile Picture</FormLabel>
                     <FormControl>
@@ -230,7 +220,6 @@ export default function UserProfilePage() {
                 )}
               />
 
-              {/* Display Name */}
               <FormField
                 control={form.control}
                 name="displayName"
@@ -245,15 +234,12 @@ export default function UserProfilePage() {
                 )}
               />
               
-              {/* Email (Read-only) */}
               <FormItem>
                 <FormLabel className="text-lg">Email</FormLabel>
                 <Input type="email" value={currentUser.email || "Not available"} readOnly disabled className="bg-muted/50" />
                 <FormDescription>Your email address cannot be changed here.</FormDescription>
               </FormItem>
 
-
-              {/* Bio */}
               <FormField
                 control={form.control}
                 name="bio"
@@ -268,13 +254,12 @@ export default function UserProfilePage() {
                 )}
               />
 
-              {/* Birthdate */}
                <FormField
                 control={form.control}
                 name="birthdate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel className="text-lg mb-1">Date of Birth</FormLabel>
+                    <FormLabel className="text-lg mb-1">Date of Birth (Optional)</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -310,7 +295,6 @@ export default function UserProfilePage() {
                 )}
               />
 
-              {/* Social Links */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl">Social Links (Optional)</CardTitle>
@@ -358,28 +342,15 @@ export default function UserProfilePage() {
                 </CardContent>
               </Card>
               
-              <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                Save Profile
+              <Button type="submit" size="default" className="w-full" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save
               </Button>
             </form>
           </Form>
         </CardContent>
         <CardFooter className="p-6 md:p-8 flex-col space-y-4">
-           <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Current App Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p><strong>Theme:</strong> <span className="capitalize">{theme}</span></p>
-              <p><strong>Large Text:</strong> {accessibility.largeText ? "Enabled" : "Disabled"}</p>
-              <p><strong>High Contrast:</strong> {accessibility.highContrast ? "Enabled" : "Disabled"}</p>
-              <p><strong>Text-to-Speech:</strong> {accessibility.textToSpeech ? "Enabled" : "Disabled"}</p>
-              <p className="text-muted-foreground mt-1">
-                These settings can be changed using the settings cog.
-              </p>
-            </CardContent>
-          </Card>
+          {/* Removed Current App Settings Card */}
           <Button onClick={logout} variant="destructive" className="w-full">
             <LogOut className="mr-2 h-4 w-4" />
             Log Out

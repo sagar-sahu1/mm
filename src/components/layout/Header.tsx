@@ -12,7 +12,8 @@ import {
   UserPlus, 
   LayoutDashboard, 
   Lightbulb,
-  Home // Added Home icon
+  Home,
+  BarChart3 // Added BarChart3 for Leaderboard
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -48,6 +49,12 @@ export function Header() {
               Create Quiz
             </Link>
           </Button>
+          <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
+            <Link href="/leaderboard" className="flex items-center">
+              <BarChart3 className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
+              Leaderboard
+            </Link>
+          </Button>
           
           {!loading && (
             <>
@@ -56,7 +63,6 @@ export function Header() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full">
                        <Avatar className="h-8 w-8">
-                        {/* currentUser.photoURL can be added here later if available */}
                         <AvatarImage src={currentUser.photoURL || undefined} alt={currentUser.displayName || currentUser.email || "User"} />
                         <AvatarFallback>
                           <UserCircle className="h-6 w-6" />
