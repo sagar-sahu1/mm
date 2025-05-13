@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -30,7 +29,7 @@ const profileFormSchema = z.object({
   displayName: z.string().min(2, "Display name must be at least 2 characters.").max(50, "Display name too long."),
   photoFile: z.instanceof(File).optional().nullable(),
   bio: z.string().min(10, "Bio must be at least 10 characters.").max(300, "Bio too long (max 300 characters)."),
-  birthdate: z.date({ required_error: "Date of birth is required."}), // Made mandatory
+  birthdate: z.date({ required_error: "Date of birth is required."}),
   socialLinks: z.object({
     github: z.string().url("Invalid URL").optional().or(z.literal('')),
     linkedin: z.string().url("Invalid URL").optional().or(z.literal('')),
@@ -54,7 +53,7 @@ export default function UserProfilePage() {
       displayName: "",
       photoFile: null,
       bio: "",
-      birthdate: undefined, // Zod will handle required error if not set
+      birthdate: undefined, 
       socialLinks: { github: "", linkedin: "", instagram: "" },
     },
   });
@@ -76,21 +75,20 @@ export default function UserProfilePage() {
             });
             setPhotoPreview(profileData.photoURL || currentUser.photoURL || null);
           } else {
-            // If no profile data in Firestore, set up with Auth data and prompt to complete
+            // If no profile data in Firestore, set up with Auth data
             form.reset({
               displayName: currentUser.displayName || "",
-              bio: "",
-              birthdate: undefined, // Prompt user to fill
+              bio: "", // User can fill this optionally
+              birthdate: undefined, // User can fill this optionally
               socialLinks: { github: "", linkedin: "", instagram: "" },
               photoFile: null,
             });
             setPhotoPreview(currentUser.photoURL || null);
-            // Optionally, prompt to complete profile if it's their first time or data is missing
-             toast({
-              title: "Complete Your Profile",
-              description: "Please fill in your profile details to continue.",
+             toast({ // Changed toast message
+              title: "Welcome to Your Profile",
+              description: "Consider updating your profile details to personalize your experience.",
               variant: "default",
-              duration: 7000,
+              duration: 5000,
             });
           }
         })
@@ -136,8 +134,8 @@ export default function UserProfilePage() {
       const firestoreData: UserProfileFirestoreData = {
         displayName: data.displayName,
         photoURL: newPhotoURL || undefined,
-        bio: data.bio, // bio is now mandatory
-        birthdate: data.birthdate ? format(data.birthdate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'), // birthdate is mandatory
+        bio: data.bio, 
+        birthdate: data.birthdate ? format(data.birthdate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'), 
         socialLinks: data.socialLinks,
         email: currentUser.email || undefined,
       };
@@ -165,13 +163,12 @@ export default function UserProfilePage() {
       }
       
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
-      // Check if profile was incomplete before and now is complete
-      // A simple check, could be more robust to check if all mandatory fields were initially empty or default
+      
       const wasIncomplete = !form.formState.defaultValues?.bio || !form.formState.defaultValues?.birthdate;
       const isNowComplete = !!data.bio && !!data.birthdate;
 
       if (wasIncomplete && isNowComplete) { 
-        router.push('/'); // Redirect to home or dashboard after profile completion
+        router.push('/dashboard'); // Redirect to dashboard after initial profile completion (if they chose to complete it)
       }
 
     } catch (error) {
@@ -374,4 +371,3 @@ export default function UserProfilePage() {
     </div>
   );
 }
-

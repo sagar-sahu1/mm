@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { ReactNode, Dispatch, SetStateAction } from 'react';
@@ -12,9 +11,9 @@ import {
   type AuthError
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation'; // Added useSearchParams
 import { useToast } from '@/hooks/use-toast';
-import { createUserProfileDocument, getUserProfile, recordUserLogin } from '@/lib/firestoreUtils'; // Added recordUserLogin
+import { createUserProfileDocument, getUserProfile, recordUserLogin } from '@/lib/firestoreUtils';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -22,8 +21,6 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<FirebaseUser | null>;
   signup: (email: string, pass: string) => Promise<FirebaseUser | null>;
   logout: () => Promise<void>;
-  // Add other providers like Google, GitHub, etc. here if needed
-  // loginWithGoogle: () => Promise<FirebaseUser | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,31 +29,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams(); // Get search params
   const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      if (user) {
-        // Check if user profile exists, if not, redirect to /profile
-        const profile = await getUserProfile(user.uid);
-        // Profile creation is handled during signup. Here we check if mandatory fields are missing.
-        if (!profile || !profile.displayName || !profile.birthdate || !profile.bio) {
-            if (window.location.pathname !== '/profile') {
-                 toast({
-                    title: "Complete Your Profile",
-                    description: "Please fill in all required profile details to continue.",
-                    variant: "default", // or "destructive" if it's a strict requirement
-                    duration: 7000,
-                 });
-                router.push('/profile?incomplete=true');
-            }
-        }
-      }
+      // Profile completion check is removed from here to make it optional.
+      // Navigation flow is no longer interrupted by profile status.
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [router, toast]); // Added router and toast to dependency array
+  }, []); // Removed router and toast dependencies as they are stable or handled elsewhere
 
   const handleAuthError = (error: AuthError, defaultMessage: string) => {
     console.error("Firebase Auth Error:", error);
@@ -94,20 +78,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       setCurrentUser(userCredential.user);
-      await recordUserLogin(userCredential.user.uid); // Record login
+      await recordUserLogin(userCredential.user.uid);
       toast({ title: 'Logged In', description: 'Successfully logged in!' });
       
-      const profile = await getUserProfile(userCredential.user.uid);
-      if (!profile || !profile.displayName || !profile.birthdate || !profile.bio) {
-         toast({
-            title: "Profile Incomplete",
-            description: "Please complete your profile information.",
-            duration: 5000,
-          });
-        router.push('/profile?incomplete=true');
-      } else {
-        router.push('/dashboard'); 
-      }
+      const redirectUrl = searchParams.get('redirect') || '/dashboard'; // Get redirect from query or default
+      router.push(redirectUrl); 
       return userCredential.user;
     } catch (error) {
       return handleAuthError(error as AuthError, 'Failed to log in.');
@@ -121,17 +96,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       setCurrentUser(userCredential.user);
-      // Create a basic profile document, actual completion will be on /profile page
       await createUserProfileDocument(userCredential.user.uid, {
         email: userCredential.user.email || undefined,
-        displayName: userCredential.user.displayName || email.split('@')[0], // default display name
-        // bio and birthdate will be empty, forcing user to /profile
+        displayName: userCredential.user.displayName || email.split('@')[0],
         bio: '', 
         birthdate: '', 
       });
-      await recordUserLogin(userCredential.user.uid); // Record first login/signup
-      toast({ title: 'Account Created', description: 'Successfully signed up! Please complete your profile.' });
-      router.push('/profile?new_user=true'); // Redirect to profile page for completion
+      await recordUserLogin(userCredential.user.uid);
+      toast({ title: 'Account Created', description: 'Welcome to MindMash! You can complete your profile details later.' });
+      
+      const redirectUrl = searchParams.get('redirect') || '/dashboard'; // Get redirect from query or default
+      router.push(redirectUrl);
       return userCredential.user;
     } catch (error) {
       return handleAuthError(error as AuthError, 'Failed to sign up.');
