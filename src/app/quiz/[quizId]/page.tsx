@@ -25,7 +25,7 @@ export default function QuizPage() {
     previousQuestion, 
     navigateToQuestion, 
     submitQuiz,
-    markQuizAsStarted // Get new function from context
+    markQuizAsStarted 
   } = useQuiz();
   
   const [isClient, setIsClient] = useState(false);
@@ -51,22 +51,16 @@ export default function QuizPage() {
 
 
   useEffect(() => {
-    if (activeQuiz && !activeQuiz.completedAt && typeof activeQuiz.timeLimitMinutes === 'number' && activeQuiz.timeLimitMinutes > 0) {
+    if (activeQuiz && !activeQuiz.completedAt && typeof activeQuiz.timeLimitMinutes === 'number' && activeQuiz.timeLimitMinutes > 0 && activeQuiz.startedAt) {
       const now = Date.now();
-      // Ensure activeQuiz.startedAt is a number before using it
-      const elapsedTimeSeconds = activeQuiz.startedAt ? Math.floor((now - activeQuiz.startedAt) / 1000) : 0;
+      const elapsedTimeSeconds = Math.floor((now - activeQuiz.startedAt) / 1000);
       const initialRemainingSeconds = (activeQuiz.timeLimitMinutes * 60) - elapsedTimeSeconds;
       
-      const newOverallTimeLeft = initialRemainingSeconds > 0 ? initialRemainingSeconds : 0;
-      if (overallTimeLeft !== newOverallTimeLeft) {
-         setOverallTimeLeft(newOverallTimeLeft);
-      }
+      setOverallTimeLeft(initialRemainingSeconds > 0 ? initialRemainingSeconds : 0);
     } else {
-      if (overallTimeLeft !== null) {
-        setOverallTimeLeft(null); 
-      }
+      setOverallTimeLeft(null); 
     }
-  }, [activeQuiz?.id, activeQuiz?.completedAt, activeQuiz?.timeLimitMinutes, activeQuiz?.startedAt, overallTimeLeft]);
+  }, [activeQuiz?.id, activeQuiz?.completedAt, activeQuiz?.timeLimitMinutes, activeQuiz?.startedAt]); // Rerun when activeQuiz or its relevant properties change
 
 
   useEffect(() => {
@@ -113,6 +107,8 @@ export default function QuizPage() {
       if (activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1) {
         nextQuestion();
       } else {
+        // If it's the last question and per-question timer runs out, submit the quiz.
+        // The overall timer will also handle submission if it runs out first.
         if (!activeQuiz.completedAt) {
           submitQuiz();
         }
@@ -166,7 +162,7 @@ export default function QuizPage() {
     <div className="space-y-6 max-w-6xl mx-auto">
       <Card className="shadow-md bg-card">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold">{activeQuiz.topic} Quiz</CardTitle>
+          <CardTitle className="text-3xl font-bold">{activeQuiz.topic} Quiz}</CardTitle>
           <CardDescription className="text-md text-muted-foreground">
             Difficulty: <span className="capitalize font-semibold text-primary">{activeQuiz.difficulty}</span>
             {activeQuiz.subtopic && (<> | Subtopic: <span className="capitalize font-semibold text-primary">{activeQuiz.subtopic}</span></>)}
@@ -256,7 +252,8 @@ export default function QuizPage() {
                   <span className={`font-semibold ${overallTimeLeft <= 60 ? 'text-destructive animate-pulse' : 'text-foreground'}`}>{formatOverallTime(overallTimeLeft)}</span>
                 </div>
               )}
-              {activeQuiz.timeLimitMinutes === 0 && (
+              {/* Show "No Limit" if timeLimitMinutes is 0 or undefined and quiz hasn't started with a timer */}
+              {(activeQuiz.timeLimitMinutes === undefined || activeQuiz.timeLimitMinutes <= 0) && (!activeQuiz.startedAt || overallTimeLeft === null) && (
                  <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center text-muted-foreground"><TimerIcon className="h-4 w-4 mr-2 text-primary" /> Overall Time:</span>
                   <span className="font-semibold text-foreground">No Limit</span>

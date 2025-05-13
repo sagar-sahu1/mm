@@ -1,5 +1,4 @@
-
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 import { TimerIcon } from "lucide-react";
@@ -9,8 +8,8 @@ interface QuizTimerProps {
   duration: number; // in seconds
   onTimeUp: () => void;
   isPaused?: boolean;
-  timerKey?: string | number; // Add a key to reset the timer
-  compact?: boolean; // For minimal display
+  timerKey?: string | number; 
+  compact?: boolean; 
 }
 
 export function QuizTimer({ duration, onTimeUp, isPaused = false, timerKey, compact = false }: QuizTimerProps) {
@@ -18,19 +17,16 @@ export function QuizTimer({ duration, onTimeUp, isPaused = false, timerKey, comp
 
   useEffect(() => {
     setTimeLeft(duration); 
-  }, [duration, timerKey]); // timerKey will ensure reset when it changes (e.g. on question change)
+  }, [duration, timerKey]);
 
   useEffect(() => {
-    if (isPaused || timeLeft <= 0) {
+    if (isPaused || timeLeft <= 0 || duration <= 0) {
       if (timeLeft <=0 && !isPaused && duration > 0) { 
          onTimeUp();
       }
       return;
     }
     
-    if (duration <= 0) return; // Only run timer if duration is positive
-
-
     const intervalId = setInterval(() => {
       setTimeLeft((prevTime) => prevTime - 1);
     }, 1000);
@@ -43,7 +39,8 @@ export function QuizTimer({ duration, onTimeUp, isPaused = false, timerKey, comp
   const progressPercentage = duration > 0 ? (timeLeft / duration) * 100 : 0;
 
   if (duration <=0 && !compact) { 
-      return <div className="text-center text-muted-foreground p-4 border rounded-lg shadow bg-card">No time limit for this question.</div>;
+      // This case is handled by the QuizDisplay now to show "No time limit..."
+      return null; 
   }
   if (duration <=0 && compact) {
       return null; 
@@ -62,19 +59,18 @@ export function QuizTimer({ duration, onTimeUp, isPaused = false, timerKey, comp
   }
 
   return (
-    <div className="w-full p-4 border rounded-lg shadow bg-card">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center text-sm text-muted-foreground">
-          <TimerIcon className="h-5 w-5 mr-2 text-primary" />
-          Time Remaining (Question)
+    <div className="w-full p-3 border rounded-lg shadow-sm bg-card">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center text-xs text-muted-foreground">
+          <TimerIcon className="h-4 w-4 mr-1.5 text-primary" />
+          Time Left (Question)
         </div>
-        <div className={`text-xl font-bold ${timeLeft <= 10 && timeLeft > 0 && duration > 0 ? 'text-destructive animate-pulse' : 'text-foreground'}`}>
+        <div className={`text-lg font-semibold ${timeLeft <= 10 && timeLeft > 0 && duration > 0 ? 'text-destructive animate-pulse' : 'text-foreground'}`}>
           {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
         </div>
       </div>
-      <Progress value={progressPercentage} aria-label={`Time remaining for question: ${minutes} minutes ${seconds} seconds`} className="h-3" />
-       {timeLeft <= 0 && duration > 0 && <p className="text-center text-destructive font-medium mt-2">Time's up for this question!</p>}
+      <Progress value={progressPercentage} aria-label={`Time remaining for question: ${minutes} minutes ${seconds} seconds`} className="h-2" />
+       {timeLeft <= 0 && duration > 0 && !isPaused && <p className="text-center text-destructive text-xs font-medium mt-1.5">Time's up for this question!</p>}
     </div>
   );
 }
-

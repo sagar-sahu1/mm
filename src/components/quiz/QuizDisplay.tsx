@@ -1,9 +1,8 @@
-
 'use client';
 
 import type { QuizQuestion } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // CardDescription removed
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState, useRef } from "react";
@@ -17,7 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { QuizTimer } from "./QuizTimer"; // Import QuizTimer
+import { QuizTimer } from "./QuizTimer";
 
 interface QuizDisplayProps {
   question: QuizQuestion;
@@ -26,15 +25,13 @@ interface QuizDisplayProps {
   onAnswer: (answer: string) => void;
   isSubmitted: boolean; 
   showFeedback: boolean; 
-  perQuestionDuration: number; // Duration for the per-question timer
-  onPerQuestionTimeUp: () => void; // Callback when per-question timer ends
-  timerKey: string | number; // Key to reset the timer
+  perQuestionDuration: number; 
+  onPerQuestionTimeUp: () => void;
+  timerKey: string | number; 
 }
 
 export function QuizDisplay({ 
   question, 
-  // questionNumber, // No longer used directly in this component for display
-  // totalQuestions, // No longer used directly in this component for display
   onAnswer, 
   isSubmitted, 
   showFeedback,
@@ -128,10 +125,10 @@ export function QuizDisplay({
         let userMessage = "Could not play audio for the question.";
         if (errorCode === 'synthesis-failed' || errorCode === 'audio-busy' || errorCode === 'network') {
              userMessage += ` TTS service might be unavailable or busy. Please try again later.`;
-        } else if (event.error && typeof event.error === 'string' && event.error.trim() !== "") {
+        } else if (typeof event.error === 'string' && event.error.trim() !== "") {
             userMessage += ` Reason: ${event.error}.`;
-        } else if (event.error && typeof event.error === 'object' && 'message' in event.error && typeof event.error.message === 'string') {
-            userMessage += ` Reason: ${event.error.message}.`;
+        } else if (event.error && typeof event.error === 'object' && 'message' in event.error && typeof (event.error as any).message === 'string') {
+            userMessage += ` Reason: ${(event.error as any).message}.`;
         } else {
             userMessage += ` Error code: ${errorCode}.`;
         }
@@ -169,23 +166,23 @@ export function QuizDisplay({
                 )}
             </div>
         </div>
-        {/* Per-question timer displayed below the question title */}
-        {perQuestionDuration > 0 && !activeQuiz?.completedAt && (
-          <div className="mt-3">
+        {/* Per-question timer displayed below the question title and TTS icon area */}
+        <div className="mt-3">
+          {perQuestionDuration > 0 && !activeQuiz?.completedAt && !isSubmitted && (
             <QuizTimer
               timerKey={timerKey}
               duration={perQuestionDuration}
               onTimeUp={onPerQuestionTimeUp}
               isPaused={!!activeQuiz?.completedAt || isSubmitted}
-              compact={false} // Use the non-compact version here
+              compact={false} // Use the non-compact version here for better visibility
             />
-          </div>
-        )}
-         {perQuestionDuration <= 0 && !activeQuiz?.completedAt && (
-             <div className="text-center text-muted-foreground p-2 mt-3 border rounded-lg bg-muted/50 text-sm">No time limit for this question.</div>
           )}
+          {(perQuestionDuration <= 0 && !activeQuiz?.completedAt && !isSubmitted) && (
+              <div className="text-center text-muted-foreground p-2 mt-1 border rounded-lg bg-muted/50 text-sm">No time limit for this question.</div>
+          )}
+        </div>
       </CardHeader>
-      <CardContent className="pt-4"> {/* Adjusted padding-top for CardContent */}
+      <CardContent className="pt-4">
         <RadioGroup
           value={selectedValue}
           onValueChange={handleValueChange}
@@ -226,4 +223,3 @@ export function QuizDisplay({
     </Card>
   );
 }
-

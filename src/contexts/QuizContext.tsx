@@ -29,7 +29,7 @@ interface QuizContextType {
   navigateToQuestion: (questionIndex: number) => void;
   submitQuiz: () => void;
   loadQuizFromStorage: (quizId: string) => Quiz | null;
-  markQuizAsStarted: (quizId: string) => void; // New function
+  markQuizAsStarted: (quizId: string) => void;
   clearActiveQuiz: () => void;
   allQuizzes: Quiz[];
   deleteQuiz: (quizId: string) => void;
@@ -49,10 +49,16 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     const enrichedQuestions = quizData.questions.map(q => ({...q, id: uuidv4()}));
     
     let perQuestionTimeSeconds: number | undefined = undefined;
+    // Calculate perQuestionTimeSeconds only if timeLimit is set and there are questions
     if (quizData.timeLimit && quizData.timeLimit > 0 && enrichedQuestions.length > 0) {
-      perQuestionTimeSeconds = Math.floor((quizData.timeLimit * 60) / enrichedQuestions.length);
-      if (perQuestionTimeSeconds < 10) perQuestionTimeSeconds = 10; 
+      const totalSecondsForQuiz = quizData.timeLimit * 60;
+      perQuestionTimeSeconds = Math.floor(totalSecondsForQuiz / enrichedQuestions.length);
+      // Ensure a minimum reasonable time per question, e.g., 10 seconds
+      if (perQuestionTimeSeconds < 10) {
+        perQuestionTimeSeconds = 10; 
+      }
     }
+
 
     const newQuiz: Quiz = {
       id: newQuizId,
@@ -70,7 +76,7 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       isPublic: quizData.isPublic,
       // startedAt will be set by markQuizAsStarted when the quiz page loads
     };
-    setActiveQuiz(newQuiz); // Set as new object
+    setActiveQuiz(newQuiz); 
     setAllQuizzes(prev => [newQuiz, ...prev.filter(q => q.id !== newQuizId)]);
     setIsLoadingQuiz(false);
     return newQuizId;
@@ -84,7 +90,7 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       );
       const updatedQuiz = { ...prevQuiz, questions: updatedQuestions };
       setAllQuizzes(prevAll => prevAll.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
-      return updatedQuiz; // Return new object
+      return updatedQuiz;
     });
   }, [setAllQuizzes]);
 
@@ -96,7 +102,7 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       const newIndex = prevQuiz.currentQuestionIndex + 1;
       const updatedQuiz = { ...prevQuiz, currentQuestionIndex: newIndex };
       setAllQuizzes(prevAll => prevAll.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
-      return updatedQuiz; // Return new object
+      return updatedQuiz; 
     });
   }, [setAllQuizzes]);
 
@@ -108,7 +114,7 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       const newIndex = prevQuiz.currentQuestionIndex - 1;
       const updatedQuiz = { ...prevQuiz, currentQuestionIndex: newIndex };
       setAllQuizzes(prevAll => prevAll.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
-      return updatedQuiz; // Return new object
+      return updatedQuiz; 
     });
   }, [setAllQuizzes]);
 
@@ -119,7 +125,7 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       }
       const updatedQuiz = { ...prevQuiz, currentQuestionIndex: questionIndex };
       setAllQuizzes(prevAll => prevAll.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
-      return updatedQuiz; // Return new object
+      return updatedQuiz; 
     });
   }, [setAllQuizzes]);
 
@@ -141,22 +147,21 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       };
       setAllQuizzes(prev => prev.map(q => q.id === completedQuiz.id ? completedQuiz : q));
       localStorage.removeItem('mindmash-active-quiz-temp');
-      return completedQuiz; // Return new object
+      return completedQuiz; 
     });
   }, [setAllQuizzes]);
-
-  // Loads quiz from storage, does not modify it (e.g., set startedAt)
+  
   const loadQuizFromStorage = useCallback((quizId: string): Quiz | null => {
     setIsLoadingQuiz(true);
     const quiz = allQuizzes.find(q => q.id === quizId);
     if (quiz) {
-      setActiveQuiz({ ...quiz }); // Create a new object reference
+      setActiveQuiz({ ...quiz }); 
       setIsLoadingQuiz(false);
-      return { ...quiz }; // Return a new object reference
+      return { ...quiz }; 
     }
     setIsLoadingQuiz(false);
     return null;
-  }, [allQuizzes]); // Depends on allQuizzes for finding
+  }, [allQuizzes]); 
 
   const markQuizAsStarted = useCallback((quizId: string) => {
     setAllQuizzes(prevAll => {
@@ -164,18 +169,17 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       const newAllQuizzes = prevAll.map(q => {
         if (q.id === quizId && q.timeLimitMinutes && q.timeLimitMinutes > 0 && !q.startedAt && !q.completedAt) {
           changed = true;
-          const updatedQuiz = { ...q, startedAt: Date.now() };
-          // If this is the active quiz, update it directly
+          const updatedQuizWithStartTime = { ...q, startedAt: Date.now() };
           if (activeQuiz && activeQuiz.id === quizId) {
-            setActiveQuiz(updatedQuiz); // New object
+            setActiveQuiz(prevActive => prevActive ? { ...prevActive, startedAt: updatedQuizWithStartTime.startedAt } : null);
           }
-          return updatedQuiz;
+          return updatedQuizWithStartTime;
         }
         return q;
       });
       return changed ? newAllQuizzes : prevAll;
     });
-  }, [activeQuiz, setAllQuizzes]);
+  }, [activeQuiz, setAllQuizzes, setActiveQuiz]);
 
 
   const clearActiveQuiz = useCallback(() => {
@@ -203,28 +207,22 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     if (activeQuiz && !activeQuiz.completedAt) {
       localStorage.setItem('mindmash-active-quiz-temp', JSON.stringify(activeQuiz));
     } else if (activeQuiz && activeQuiz.completedAt) {
-      // This removal should happen once when quiz is submitted
       localStorage.removeItem('mindmash-active-quiz-temp');
     }
   }, [activeQuiz]);
 
-  // Effect to load an active quiz from localStorage on initial app load / refresh
   useEffect(() => {
     const savedActiveQuizJson = localStorage.getItem('mindmash-active-quiz-temp');
     if (savedActiveQuizJson) {
       try {
         const parsedQuiz = JSON.parse(savedActiveQuizJson) as Quiz;
-        // Ensure it's a valid, non-completed quiz object
         if (parsedQuiz && parsedQuiz.id && parsedQuiz.questions && typeof parsedQuiz.currentQuestionIndex === 'number' && !parsedQuiz.completedAt) {
-           // Only set if the current page is the quiz page for this quiz
            if (typeof window !== 'undefined' && window.location.pathname.startsWith(`/quiz/${parsedQuiz.id}`)) {
-             setActiveQuiz(parsedQuiz); // This will be a new object ref
+             setActiveQuiz(parsedQuiz); 
            } else {
-             // Navigated away from the quiz page, so clear the temp active quiz
              localStorage.removeItem('mindmash-active-quiz-temp');
            }
         } else if (parsedQuiz && parsedQuiz.completedAt) {
-            // If it's completed, it shouldn't be in active-quiz-temp
             localStorage.removeItem('mindmash-active-quiz-temp');
         }
       } catch (e) {
