@@ -102,17 +102,26 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
           utteranceRef.current = null;
         }
       };
-      utterance.onerror = (event) => {
+      utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
         if (utteranceRef.current === utterance) {
           setIsSpeaking(false);
           utteranceRef.current = null;
         }
-        console.error("Speech synthesis error:", event);
-        let errorMessage = "Could not play audio for the question.";
-        if (event.error) {
-            errorMessage += ` Reason: ${event.error}. Please ensure your browser has permissions and TTS is enabled.`;
+        
+        const errorCode = event.error || "unknown_error";
+        // Log more detailed error information to the console for developers
+        console.error(
+          `Speech synthesis error. Code: ${errorCode}. Utterance: "${event.utterance?.text?.substring(0,50)}..."`,
+          "Full event:", event
+        );
+        
+        let userMessage = "Could not play audio for the question.";
+        if (event.error && typeof event.error === 'string' && event.error.trim() !== "") {
+            userMessage += ` Reason: ${event.error}. Please check browser permissions and TTS settings.`;
+        } else {
+            userMessage += " An unspecified Text-to-Speech error occurred.";
         }
-        toast({ title: "Speech Error", description: errorMessage, variant: "destructive" });
+        toast({ title: "Speech Error", description: userMessage, variant: "destructive" });
       };
       window.speechSynthesis.speak(utterance);
     } else {
@@ -136,7 +145,7 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" onClick={handleSpeak} aria-label={isSpeaking ? "Stop speaking" : "Speak question"} className="ml-2 shrink-0">
-                                {isSpeaking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Volume2 className="h-5 w-5" />}
+                                {isSpeaking ? <Loader2 className="h-5 w-5 animate-spin" /> : (question.question ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />) }
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -187,3 +196,4 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
     </Card>
   );
 }
+
