@@ -1,4 +1,6 @@
+
 import type { GenerateQuizQuestionsInput } from '@/ai/flows/generate-quiz-questions';
+import type { Timestamp } from 'firebase/firestore';
 
 export interface QuizQuestion {
   id: string; // Unique ID for the question (e.g., generated UUID)
@@ -29,10 +31,6 @@ export interface Quiz {
   isPublic?: boolean; // Optional: whether the quiz is public
 }
 
-// For storing quizzes in localStorage, we might simplify or store an array of Quizzes.
-// For QuizContext, we might store the activeQuiz: Quiz | null.
-
-
 export interface SocialLinks {
   github?: string;
   linkedin?: string;
@@ -44,8 +42,8 @@ export interface UserProfile {
   email: string | null; // From Firebase Auth
   displayName?: string | null; // From Firebase Auth & Firestore
   photoURL?: string | null; // From Firebase Auth & Firestore
-  bio: string; // Firestore, now mandatory
-  birthdate: string; // ISO string "YYYY-MM-DD", Firestore, now mandatory
+  bio: string; 
+  birthdate: string; // ISO string "YYYY-MM-DD"
   socialLinks?: SocialLinks; // Firestore
   createdAt?: number; // Firestore, when profile doc was created
   updatedAt?: number; // Firestore, when profile doc was last updated
@@ -54,17 +52,21 @@ export interface UserProfile {
 }
 
 // Data structure for Firestore 'users' collection documents
-// This mirrors UserProfile but omits uid and email as they are often doc ID / auth derived
 export interface UserProfileFirestoreData {
   displayName?: string;
   photoURL?: string;
-  bio: string; // now mandatory
-  birthdate: string; // ISO string "YYYY-MM-DD", now mandatory
+  bio: string; 
+  birthdate: string; // ISO string "YYYY-MM-DD"
   socialLinks?: SocialLinks;
-  email?: string; // Store email for easier querying/display if needed, though auth is source of truth
-  createdAt?: number; 
-  updatedAt?: number;
-  totalScore?: number; // Aggregated score for leaderboard
-  quizzesCompleted?: number; // Count of completed quizzes for leaderboard
+  email?: string; 
+  createdAt?: number | Timestamp; // Allow both for creation and reading
+  updatedAt?: number | Timestamp; // Allow both for creation and reading
+  totalScore?: number; 
+  quizzesCompleted?: number; 
 }
 
+export interface UserActivityLog {
+  uid: string;
+  timestamp: Timestamp;
+  date: string; // YYYY-MM-DD format for easy grouping
+}

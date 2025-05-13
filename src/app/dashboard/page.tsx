@@ -8,8 +8,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuiz } from '@/contexts/QuizContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, UserCircle, BarChart3, ListChecks, Lightbulb, Link2 } from 'lucide-react';
+import { Loader2, UserCircle, BarChart3, ListChecks, Lightbulb, Link2, CalendarDays } from 'lucide-react';
 import type { Quiz } from '@/types';
+import { ActivityHeatmap } from '@/components/dashboard/ActivityHeatmap'; // Import the heatmap
 
 export default function DashboardPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -49,7 +50,7 @@ export default function DashboardPage() {
   const uniqueTopicsExplored = new Set(completedQuizzes.map(quiz => quiz.topic.toLowerCase())).size;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8">
       <Card className="shadow-xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -61,7 +62,7 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 md:p-8 grid md:grid-cols-3 gap-6">
-          <Card className="text-center">
+          <Card className="text-center shadow-md">
             <CardHeader>
               <CardTitle className="text-xl">Quizzes Completed</CardTitle>
             </CardHeader>
@@ -69,7 +70,7 @@ export default function DashboardPage() {
               <p className="text-4xl font-bold text-primary">{totalQuizzesCompleted}</p>
             </CardContent>
           </Card>
-          <Card className="text-center">
+          <Card className="text-center shadow-md">
             <CardHeader>
               <CardTitle className="text-xl">Average Score</CardTitle>
             </CardHeader>
@@ -77,7 +78,7 @@ export default function DashboardPage() {
               <p className="text-4xl font-bold text-primary">{averageScore.toFixed(0)}%</p>
             </CardContent>
           </Card>
-          <Card className="text-center">
+          <Card className="text-center shadow-md">
             <CardHeader>
               <CardTitle className="text-xl">Topics Explored</CardTitle>
             </CardHeader>
@@ -86,18 +87,39 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </CardContent>
-        <CardFooter className="p-6 md:p-8 flex flex-col sm:flex-row justify-center gap-4">
-          <Button asChild size="lg">
+      </Card>
+
+      <Card className="shadow-xl">
+        <CardHeader>
+          <CardTitle className="text-2xl font-semibold flex items-center">
+            <CalendarDays className="mr-3 h-7 w-7 text-primary" />
+            Your Activity
+          </CardTitle>
+          <CardDescription>
+            A look at your login activity over the past year.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 md:p-6">
+          {currentUser && <ActivityHeatmap userId={currentUser.uid} />}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-xl">
+        <CardHeader>
+            <CardTitle className="text-2xl font-semibold">Quick Actions</CardTitle>
+        </CardHeader>
+        <CardFooter className="p-6 md:p-8 flex flex-col sm:flex-row justify-center items-center gap-4">
+          <Button asChild size="lg" className="w-full sm:w-auto">
             <Link href="/create-quiz">
               <Lightbulb className="mr-2 h-5 w-5" /> Create New Quiz
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
+          <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
             <Link href="/history">
               <ListChecks className="mr-2 h-5 w-5" /> View Quiz History
             </Link>
           </Button>
-          <Button asChild variant="secondary" size="lg">
+          <Button asChild variant="secondary" size="lg" className="w-full sm:w-auto">
             <Link href="/challenge">
               <Link2 className="mr-2 h-5 w-5" /> Challenge a Friend
             </Link>
