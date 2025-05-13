@@ -30,22 +30,28 @@ export default function QuizPage() {
   }, [quizId, loadQuizFromStorage]);
 
 
-  // Initialize and manage overall quiz timer
+  // Effect to initialize/reset overallTimeLeft when the quiz (ID, completion, timeLimit) changes
   useEffect(() => {
-    if (!activeQuiz || activeQuiz.completedAt || typeof activeQuiz.timeLimitMinutes !== 'number' || activeQuiz.timeLimitMinutes <= 0) {
-      setOverallTimeLeft(null); 
+    if (activeQuiz && !activeQuiz.completedAt && typeof activeQuiz.timeLimitMinutes === 'number' && activeQuiz.timeLimitMinutes > 0) {
+      setOverallTimeLeft(activeQuiz.timeLimitMinutes * 60);
+    } else {
+      setOverallTimeLeft(null); // No timer if no time limit, or quiz completed, or time limit not a positive number
+    }
+  }, [activeQuiz?.id, activeQuiz?.completedAt, activeQuiz?.timeLimitMinutes]);
+
+  // Effect to handle the countdown interval for overallTimeLeft
+  useEffect(() => {
+    if (overallTimeLeft === null || overallTimeLeft <= 0 || (activeQuiz && activeQuiz.completedAt)) {
+      // Timer is not active, has expired, or the quiz is already completed
       return;
     }
 
-    if (overallTimeLeft === null) { 
-       setOverallTimeLeft(activeQuiz.timeLimitMinutes * 60);
-    }
-    
     const intervalId = setInterval(() => {
       setOverallTimeLeft(prev => {
-        if (prev === null || prev <= 1) {
+        // prev should not be null here due to the outer check, but defensive check is okay
+        if (prev === null || prev <= 1) { 
           clearInterval(intervalId);
-          if (activeQuiz && !activeQuiz.completedAt) { 
+          if (activeQuiz && !activeQuiz.completedAt) { // Ensure submitQuiz is called only once
             submitQuiz();
           }
           return 0;
@@ -55,8 +61,7 @@ export default function QuizPage() {
     }, 1000);
 
     return () => clearInterval(intervalId);
-
-  }, [activeQuiz, submitQuiz, overallTimeLeft]);
+  }, [overallTimeLeft, activeQuiz, submitQuiz]); // activeQuiz needed for completedAt check, submitQuiz for calling
 
 
   const handleAnswer = (answer: string) => {
