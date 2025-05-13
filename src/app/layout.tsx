@@ -9,6 +9,7 @@ import { Footer } from '@/components/layout/Footer';
 import { SettingsButton } from '@/components/layout/SettingsButton';
 import { siteConfig } from '@/config/site';
 import { QuizProvider } from '@/contexts/QuizContext';
+import { AuthProvider } from '@/contexts/AuthContext'; // Import AuthProvider
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -71,15 +72,17 @@ export default function RootLayout({
           defaultTheme="system"
           storageKey="mindmash-theme"
         >
-          <QuizProvider>
-            <Header />
-            <main className="flex-grow container py-8">
-              {children}
-            </main>
-            <Footer />
-            <SettingsButton />
-            <Toaster />
-          </QuizProvider>
+          <AuthProvider> {/* Wrap with AuthProvider */}
+            <QuizProvider>
+              <Header />
+              <main className="flex-grow container py-8">
+                {children}
+              </main>
+              <Footer />
+              <SettingsButton />
+              <Toaster />
+            </QuizProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

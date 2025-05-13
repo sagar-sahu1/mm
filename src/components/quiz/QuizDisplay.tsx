@@ -32,8 +32,7 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
   const { accessibility } = useTheme();
   const { toast } = useToast();
   const [isSpeaking, setIsSpeaking] = useState(false);
-  // speechRef is not strictly needed with onstart/onend, but can be useful for direct manipulation if required.
-  // const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
 
   useEffect(() => {
@@ -41,8 +40,8 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
     // Cancel any ongoing speech if the question changes
     if (window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
-      setIsSpeaking(false);
     }
+    setIsSpeaking(false); // Reset speaking state
   }, [question.id, question.userAnswer]);
 
   // Cleanup speech synthesis on component unmount
@@ -52,6 +51,7 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
         window.speechSynthesis.cancel();
       }
       setIsSpeaking(false);
+      utteranceRef.current = null;
     };
   }, []);
 
@@ -80,27 +80,43 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
     if (!accessibility.textToSpeech || !question.question) return;
 
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
+      window.speechSynthesis.cancel(); // This should stop the current speech
       setIsSpeaking(false);
+      utteranceRef.current = null;
       return;
     }
 
     if (window.speechSynthesis) {
-      if (window.speechSynthesis.speaking) { 
+      // Ensure any previous speech is cancelled before starting new
+      if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
       }
+
       const utterance = new SpeechSynthesisUtterance(question.question);
-      // speechRef.current = utterance; 
+      utteranceRef.current = utterance; 
+
       utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        if (utteranceRef.current === utterance) { // Ensure it's the same utterance
+             utteranceRef.current = null;
+        }
+      };
       utterance.onerror = (event) => {
         setIsSpeaking(false);
-        console.error("Speech synthesis error", event);
-        toast({ title: "Speech Error", description: "Could not play audio for the question.", variant: "destructive" });
+        if (utteranceRef.current === utterance) {
+            utteranceRef.current = null;
+        }
+        console.error("Speech synthesis error:", event);
+        let errorMessage = "Could not play audio for the question.";
+        if (event.error) {
+            errorMessage += ` Reason: ${event.error}. Please ensure your browser has permissions and TTS is enabled.`;
+        }
+        toast({ title: "Speech Error", description: errorMessage, variant: "destructive" });
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      toast({ title: "TTS Not Supported", description: "Your browser does not support text-to-speech.", variant: "destructive" });
+      toast({ title: "TTS Not Supported", description: "Your browser does not support text-to-speech, or it might be disabled.", variant: "destructive" });
     }
   };
 
