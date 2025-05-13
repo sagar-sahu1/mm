@@ -9,7 +9,6 @@ import { QuizProgressBar } from "@/components/quiz/QuizProgressBar";
 // Main QuizTimer component is now for the overall quiz timer if applicable.
 // Per-question timer is compact and integrated into QuizDisplay or optionally shown separately.
 // For this iteration, the primary visible timer will be per-question, driven by activeQuiz.perQuestionTimeSeconds
-import { QuizTimer } from "@/components/quiz/QuizTimer"; 
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CheckSquare, Loader2, AlertTriangle, Home, TimerIcon, HelpCircleIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,7 +21,7 @@ export default function QuizPage() {
   const params = useParams();
   const router = useRouter();
   const quizId = params.quizId as string;
-  const { activeQuiz, isLoadingQuiz, loadQuizFromStorage, answerQuestion, nextQuestion, previousQuestion, navigateToQuestion, submitQuiz, setAllQuizzes } = useQuiz();
+  const { activeQuiz, isLoadingQuiz, loadQuizFromStorage, answerQuestion, nextQuestion, previousQuestion, navigateToQuestion, submitQuiz } = useQuiz();
   const [isClient, setIsClient] = useState(false);
   const [overallTimeLeft, setOverallTimeLeft] = useState<number | null>(null);
 
@@ -41,10 +40,7 @@ export default function QuizPage() {
       return;
     }
 
-    // Calculate initial overall time left. If quiz was reloaded, adjust based on createdAt.
-    // This needs a reliable quiz start time. For simplicity, we'll just countdown from full duration.
-    // A more robust solution would store quizAttemptStartTime when the user first opens the quiz.
-    if (overallTimeLeft === null) { // Initialize only once or if activeQuiz changes
+    if (overallTimeLeft === null) { 
        setOverallTimeLeft(activeQuiz.timeLimitMinutes * 60);
     }
     
@@ -52,7 +48,7 @@ export default function QuizPage() {
       setOverallTimeLeft(prev => {
         if (prev === null || prev <= 1) {
           clearInterval(intervalId);
-          if (!activeQuiz.completedAt) { // Ensure not already submitted
+          if (activeQuiz && !activeQuiz.completedAt) { 
             submitQuiz();
           }
           return 0;
@@ -63,7 +59,7 @@ export default function QuizPage() {
 
     return () => clearInterval(intervalId);
 
-  }, [activeQuiz, submitQuiz]);
+  }, [activeQuiz, submitQuiz, overallTimeLeft]);
 
 
   const handleAnswer = (answer: string) => {
@@ -99,11 +95,7 @@ export default function QuizPage() {
 
   let perQuestionDuration = DEFAULT_QUIZ_TIMER_SECONDS;
   if (activeQuiz) {
-    if (typeof activeQuiz.timeLimitMinutes === 'number' && activeQuiz.timeLimitMinutes === 0) { // "No Time Limit" for overall quiz
-      // Use a very large number for per-question if we want to show "no limit" or a default for pacing
-      // For now, let's stick to DEFAULT_QUIZ_TIMER_SECONDS for pacing if overall is no-limit.
-      // Or, set to 0 to indicate no per-question timer for QuizTimer component.
-      // Based on prompt "if not answered then it will proceed to next question", a per-question timer is always implied for pacing.
+    if (typeof activeQuiz.timeLimitMinutes === 'number' && activeQuiz.timeLimitMinutes === 0) { 
       perQuestionDuration = activeQuiz.perQuestionTimeSeconds || DEFAULT_QUIZ_TIMER_SECONDS;
     } else if (activeQuiz.perQuestionTimeSeconds && activeQuiz.perQuestionTimeSeconds > 0) {
       perQuestionDuration = activeQuiz.perQuestionTimeSeconds;
@@ -151,61 +143,69 @@ export default function QuizPage() {
 
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto"> {/* Increased max-width for wider layout */}
       <Card className="shadow-md">
-        <CardHeader className="flex flex-row justify-between items-center">
-          <div> {/* Left side */}
-            <CardTitle className="text-3xl font-bold">{activeQuiz.topic} Quiz</CardTitle>
-            <CardDescription className="text-md text-muted-foreground">
-              Difficulty: <span className="capitalize font-semibold text-primary">{activeQuiz.difficulty}</span>
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-x-3 text-base"> {/* Right side - "time and question number line" */}
-            <div className="flex items-center">
-                <HelpCircleIcon className="h-5 w-5 mr-1 text-primary" />
-                <span className="font-medium">
-                {activeQuiz.currentQuestionIndex + 1}/{activeQuiz.questions.length}
-                </span>
-            </div>
-            {activeQuiz.timeLimitMinutes !== undefined && activeQuiz.timeLimitMinutes > 0 && overallTimeLeft !== null && (
-                <div className="flex items-center">
-                    <TimerIcon className="h-5 w-5 mr-1 text-primary" />
-                    <span>{formatOverallTime(overallTimeLeft)}</span>
-                </div>
-            )}
-            {activeQuiz.timeLimitMinutes === 0 && ( // No overall time limit
-                <div className="flex items-center">
-                  <TimerIcon className="h-5 w-5 mr-1 text-primary" />
-                  <span>No Limit</span>
-                </div>
-            )}
-          </div>
+        <CardHeader>
+          <CardTitle className="text-3xl font-bold">{activeQuiz.topic} Quiz</CardTitle>
+          <CardDescription className="text-md text-muted-foreground">
+            Difficulty: <span className="capitalize font-semibold text-primary">{activeQuiz.difficulty}</span>
+            {activeQuiz.subtopic && (<> | Subtopic: <span className="capitalize font-semibold text-primary">{activeQuiz.subtopic}</span></>)}
+          </CardDescription>
         </CardHeader>
       </Card>
 
-      {/* Per-question timer is now integrated into QuizDisplay or can be this main QuizTimer if desired */}
-      {/* For this iteration, QuizDisplay will have its own compact timer based on perQuestionDuration */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Green Box: Question Area */}
+        <div className="lg:w-2/3 p-4 rounded-lg bg-green-500/10 border border-green-600/30 shadow-md">
+          {currentQ && (
+            <QuizDisplay
+              question={currentQ}
+              questionNumber={activeQuiz.currentQuestionIndex + 1}
+              totalQuestions={activeQuiz.questions.length}
+              onAnswer={handleAnswer}
+              isSubmitted={!!activeQuiz.completedAt}
+              showFeedback={false} // Feedback shown on results page
+              perQuestionTimeSeconds={perQuestionDuration > 0 ? perQuestionDuration : undefined}
+              onPerQuestionTimeUp={handlePerQuestionTimeUp}
+            />
+          )}
+        </div>
 
-
-      {currentQ && (
-        <QuizDisplay
-          question={currentQ}
-          questionNumber={activeQuiz.currentQuestionIndex + 1} // Still pass for potential internal use or if design changes
-          totalQuestions={activeQuiz.questions.length} // Still pass for potential internal use
-          onAnswer={handleAnswer}
-          isSubmitted={!!activeQuiz.completedAt}
-          showFeedback={false} // No feedback during the quiz
-          perQuestionTimeSeconds={perQuestionDuration > 0 ? perQuestionDuration : undefined} // Pass duration for compact timer
-          onPerQuestionTimeUp={handlePerQuestionTimeUp} // Handler for compact timer
-        />
-      )}
-
-      <QuizProgressBar
-        questions={activeQuiz.questions}
-        currentQuestionIndex={activeQuiz.currentQuestionIndex}
-        onNavigate={navigateToQuestion}
-        isSubmittedView={!!activeQuiz.completedAt}
-      />
+        {/* Blue Box: Progress & Timer Area */}
+        <div className="lg:w-1/3 p-4 rounded-lg bg-blue-500/10 border border-blue-600/30 shadow-md space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Quiz Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center text-muted-foreground"><HelpCircleIcon className="h-4 w-4 mr-2 text-primary" /> Question:</span>
+                <span className="font-semibold text-foreground">{activeQuiz.currentQuestionIndex + 1} / {activeQuiz.questions.length}</span>
+              </div>
+              
+              {(activeQuiz.timeLimitMinutes !== undefined && activeQuiz.timeLimitMinutes > 0 && overallTimeLeft !== null) && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center text-muted-foreground"><TimerIcon className="h-4 w-4 mr-2 text-primary" /> Overall Time:</span>
+                  <span className={`font-semibold ${overallTimeLeft <= 60 ? 'text-destructive animate-pulse' : 'text-foreground'}`}>{formatOverallTime(overallTimeLeft)}</span>
+                </div>
+              )}
+              {activeQuiz.timeLimitMinutes === 0 && (
+                 <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center text-muted-foreground"><TimerIcon className="h-4 w-4 mr-2 text-primary" /> Overall Time:</span>
+                  <span className="font-semibold text-foreground">No Limit</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          <QuizProgressBar
+            questions={activeQuiz.questions}
+            currentQuestionIndex={activeQuiz.currentQuestionIndex}
+            onNavigate={navigateToQuestion}
+            isSubmittedView={!!activeQuiz.completedAt}
+          />
+        </div>
+      </div>
 
       <div className="flex justify-between items-center pt-4">
         <Button
