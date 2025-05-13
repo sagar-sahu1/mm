@@ -53,7 +53,9 @@ export default function UserProfilePage() {
   );
 }
 
-export const metadata = {
-  title: "User Profile",
-  description: "Manage your MindMash user profile and settings.",
-};
+// Removed metadata export as it's not allowed in client components
+// export const metadata = {
+//   title: "User Profile",
+//   description: "Manage your MindMash user profile and settings.",
+// };
+
