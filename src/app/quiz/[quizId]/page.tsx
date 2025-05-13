@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useCallback } from "react";
@@ -6,50 +5,69 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuiz } from "@/contexts/QuizContext";
 import { QuizDisplay } from "@/components/quiz/QuizDisplay";
 import { QuizProgressBar } from "@/components/quiz/QuizProgressBar";
-// QuizTimer import removed as it's now in QuizDisplay
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CheckSquare, Loader2, AlertTriangle, Home, TimerIcon, HelpCircleIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Link from "next/link";
-// DEFAULT_QUIZ_TIMER_SECONDS is no longer directly used here for duration calculation
 
 
 export default function QuizPage() {
   const params = useParams();
   const router = useRouter();
   const quizId = params.quizId as string;
-  const { activeQuiz, isLoadingQuiz, loadQuizFromStorage, answerQuestion, nextQuestion, previousQuestion, navigateToQuestion, submitQuiz } = useQuiz();
+  const { 
+    activeQuiz, 
+    isLoadingQuiz, 
+    loadQuizFromStorage, 
+    answerQuestion, 
+    nextQuestion, 
+    previousQuestion, 
+    navigateToQuestion, 
+    submitQuiz,
+    markQuizAsStarted // Get new function from context
+  } = useQuiz();
+  
   const [isClient, setIsClient] = useState(false);
   const [overallTimeLeft, setOverallTimeLeft] = useState<number | null>(null);
 
   useEffect(() => {
     setIsClient(true);
-    if (quizId) {
+  }, []);
+
+  useEffect(() => {
+    if (isClient && quizId) {
       loadQuizFromStorage(quizId);
     }
-  }, [quizId, loadQuizFromStorage]);
+  }, [isClient, quizId, loadQuizFromStorage]);
+
+  useEffect(() => {
+    if (isClient && activeQuiz && activeQuiz.id === quizId && 
+        activeQuiz.timeLimitMinutes && activeQuiz.timeLimitMinutes > 0 && 
+        !activeQuiz.startedAt && !activeQuiz.completedAt) {
+      markQuizAsStarted(quizId);
+    }
+  }, [isClient, activeQuiz, quizId, markQuizAsStarted]);
 
 
   useEffect(() => {
     if (activeQuiz && !activeQuiz.completedAt && typeof activeQuiz.timeLimitMinutes === 'number' && activeQuiz.timeLimitMinutes > 0) {
-      // Initialize with total seconds from quiz start or remaining if already started
       const now = Date.now();
+      // Ensure activeQuiz.startedAt is a number before using it
       const elapsedTimeSeconds = activeQuiz.startedAt ? Math.floor((now - activeQuiz.startedAt) / 1000) : 0;
       const initialRemainingSeconds = (activeQuiz.timeLimitMinutes * 60) - elapsedTimeSeconds;
-      setOverallTimeLeft(initialRemainingSeconds > 0 ? initialRemainingSeconds : 0);
-
-      if (!activeQuiz.startedAt) {
-        // Mark quiz as started if not already
-        // This part would ideally be in QuizContext when a quiz is first loaded/started on the page
-        // For simplicity, we'll assume activeQuiz could be updated to include 'startedAt'
-        // Or, this logic is implicitly handled if the quiz is always fresh or reloaded.
+      
+      const newOverallTimeLeft = initialRemainingSeconds > 0 ? initialRemainingSeconds : 0;
+      if (overallTimeLeft !== newOverallTimeLeft) {
+         setOverallTimeLeft(newOverallTimeLeft);
       }
-
     } else {
-      setOverallTimeLeft(null); 
+      if (overallTimeLeft !== null) {
+        setOverallTimeLeft(null); 
+      }
     }
-  }, [activeQuiz?.id, activeQuiz?.completedAt, activeQuiz?.timeLimitMinutes, activeQuiz?.startedAt]);
+  }, [activeQuiz?.id, activeQuiz?.completedAt, activeQuiz?.timeLimitMinutes, activeQuiz?.startedAt, overallTimeLeft]);
+
 
   useEffect(() => {
     if (overallTimeLeft === null || (activeQuiz && activeQuiz.completedAt)) {
@@ -58,7 +76,7 @@ export default function QuizPage() {
 
     if (overallTimeLeft <= 0) {
       if (activeQuiz && !activeQuiz.completedAt) { 
-        submitQuiz(); // Submit quiz when overall timer reaches 0
+        submitQuiz();
       }
       return;
     }
@@ -95,8 +113,6 @@ export default function QuizPage() {
       if (activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1) {
         nextQuestion();
       } else {
-        // If it's the last question and per-question timer expires, submit the quiz
-        // Only submit if overall quiz is not yet completed.
         if (!activeQuiz.completedAt) {
           submitQuiz();
         }
@@ -105,8 +121,6 @@ export default function QuizPage() {
   }, [activeQuiz, nextQuestion, submitQuiz]);
 
   const currentQ = activeQuiz?.questions[activeQuiz.currentQuestionIndex];
-  
-  // Per-question duration is derived from activeQuiz.perQuestionTimeSeconds (calculated in QuizContext)
   const perQuestionDuration = activeQuiz?.perQuestionTimeSeconds || 0;
 
 
@@ -161,18 +175,17 @@ export default function QuizPage() {
       </Card>
 
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Left Panel: Question Display and Navigation */}
         <div className="lg:w-2/3 space-y-6">
           {currentQ && (
             <Card className="shadow-lg bg-green-500/10 border-green-500">
-              <CardContent className="p-0"> {/* Remove padding if QuizDisplay handles it */}
+              <CardContent className="p-0">
                 <QuizDisplay
                   question={currentQ}
                   questionNumber={activeQuiz.currentQuestionIndex + 1}
                   totalQuestions={activeQuiz.questions.length}
                   onAnswer={handleAnswer}
                   isSubmitted={!!activeQuiz.completedAt}
-                  showFeedback={false} // Feedback shown on results page only
+                  showFeedback={false} 
                   perQuestionDuration={perQuestionDuration}
                   onPerQuestionTimeUp={handlePerQuestionTimeUp}
                   timerKey={`per-q-${currentQ.id}-${activeQuiz.currentQuestionIndex}`}
@@ -211,6 +224,7 @@ export default function QuizPage() {
                     <AlertDialogTitle>Ready to submit your answers?</AlertDialogTitle>
                     <AlertDialogDescription>
                       Once submitted, you won't be able to change your answers.
+                      The quiz will also auto-submit if the overall timer runs out.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -225,7 +239,6 @@ export default function QuizPage() {
           </div>
         </div>
 
-        {/* Right Panel: Quiz Status, Overall Timer, and Progress Bar */}
         <div className="lg:w-1/3 space-y-6 p-4 border rounded-lg shadow-md bg-blue-500/10 border-blue-500">
           <Card className="bg-card">
             <CardHeader>
@@ -237,7 +250,7 @@ export default function QuizPage() {
                 <span className="font-semibold text-foreground">{activeQuiz.currentQuestionIndex + 1} / {activeQuiz.questions.length}</span>
               </div>
               
-              {(activeQuiz.timeLimitMinutes !== undefined && activeQuiz.timeLimitMinutes > 0 && overallTimeLeft !== null) && (
+              {(activeQuiz.timeLimitMinutes !== undefined && activeQuiz.timeLimitMinutes > 0 && overallTimeLeft !== null && activeQuiz.startedAt) && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center text-muted-foreground"><TimerIcon className="h-4 w-4 mr-2 text-primary" /> Overall Time Left:</span>
                   <span className={`font-semibold ${overallTimeLeft <= 60 ? 'text-destructive animate-pulse' : 'text-foreground'}`}>{formatOverallTime(overallTimeLeft)}</span>
@@ -267,4 +280,3 @@ export default function QuizPage() {
     </div>
   );
 }
-

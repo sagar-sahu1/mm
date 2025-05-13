@@ -18,18 +18,13 @@ export default function ResultsPage() {
 
   useEffect(() => {
     setIsClient(true);
-    if (quizId) {
-      // Call loadQuizFromStorage to ensure activeQuiz is set if the user navigates directly.
-      // The function reference `loadQuizFromStorage` comes from the useQuiz context.
-      // By not including `loadQuizFromStorage` or `allQuizzes` in the dependency array here,
-      // we prevent the effect from re-running if `loadQuizFromStorage`'s identity changes
-      // due to `allQuizzes` updating (which can happen if `loadQuizFromStorage` itself
-      // modifies `allQuizzes`, e.g., by setting `startedAt`).
-      // This effect should primarily react to `quizId` changing.
+  }, []); 
+
+  useEffect(() => {
+    if (isClient && quizId) {
       loadQuizFromStorage(quizId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quizId]); 
+  }, [isClient, quizId, loadQuizFromStorage]);
 
 
   if (!isClient || isLoadingQuiz) {
@@ -41,6 +36,9 @@ export default function ResultsPage() {
     );
   }
   
+  // Prioritize activeQuiz if it matches and is completed, otherwise search allQuizzes.
+  // This ensures that if the user has just completed a quiz and is redirected here,
+  // the activeQuiz (which has the freshest state including score, completedAt) is used.
   const quizToDisplay = (activeQuiz && activeQuiz.id === quizId && activeQuiz.completedAt) 
     ? activeQuiz 
     : allQuizzes.find(q => q.id === quizId && q.completedAt);
