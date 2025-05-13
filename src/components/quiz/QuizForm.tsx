@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+// Checkbox removed as it's no longer used
 import {
   Select,
   SelectContent,
@@ -29,11 +29,11 @@ import { generateQuizQuestions } from "@/ai/flows/generate-quiz-questions";
 import type { GenerateQuizQuestionsInput, QuizQuestion as GenAIQuizQuestion } from "@/ai/flows/generate-quiz-questions";
 import { QUIZ_DIFFICULTY_LEVELS, NUMBER_OF_QUESTIONS_OPTIONS, TIME_LIMIT_OPTIONS, type QuizDifficulty } from "@/lib/constants";
 import { useQuiz } from "@/contexts/QuizContext";
-import { useAuth } from "@/contexts/AuthContext";
+// useAuth removed as currentUser check for challenge link is removed.
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Loader2, Link2Icon, Copy, Check } from "lucide-react";
-import { addChallenge } from '@/lib/firestoreUtils';
+import { Loader2 } from "lucide-react"; // Link2Icon, Copy, Check removed
+// addChallenge removed as this form no longer creates challenges
 import type { QuizQuestion } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -41,11 +41,10 @@ const formSchema = z.object({
   topic: z.string().min(2, "Topic must be at least 2 characters.").max(100, "Topic too long."),
   subtopic: z.string().max(100, "Subtopic too long.").optional(),
   difficulty: z.enum(QUIZ_DIFFICULTY_LEVELS.map(level => level.value) as [QuizDifficulty, ...QuizDifficulty[]]),
-  numberOfQuestions: z.coerce.number().min(1).max(50), // Max increased based on common request patterns
+  numberOfQuestions: z.coerce.number().min(1).max(50),
   timeLimit: z.coerce.number().optional(),
   additionalInstructions: z.string().max(500, "Instructions too long.").optional(),
-  isPublic: z.boolean().default(false),
-  generateChallengeLink: z.boolean().default(false),
+  // isPublic and generateChallengeLink removed from schema
 });
 
 type QuizFormValues = z.infer<typeof formSchema>;
@@ -53,13 +52,12 @@ type QuizFormValues = z.infer<typeof formSchema>;
 export function QuizForm() {
   const { toast } = useToast();
   const { startQuiz } = useQuiz();
-  const { currentUser } = useAuth();
+  // const { currentUser } = useAuth(); // No longer needed for this form's direct logic
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [challengerName, setChallengerName] = useState<string | null>(null);
-  const [generatedChallengeLink, setGeneratedChallengeLink] = useState<string | null>(null);
-  const [copiedChallengeLink, setCopiedChallengeLink] = useState(false);
+  // generatedChallengeLink and copiedChallengeLink state removed
 
   const form = useForm<QuizFormValues>({
     resolver: zodResolver(formSchema),
@@ -70,8 +68,8 @@ export function QuizForm() {
       numberOfQuestions: 10,
       timeLimit: 15,
       additionalInstructions: "",
-      isPublic: false,
-      generateChallengeLink: false,
+      // isPublic: false, // Removed
+      // generateChallengeLink: false, // Removed
     },
   });
 
@@ -108,22 +106,12 @@ export function QuizForm() {
 
   async function onSubmit(values: QuizFormValues) {
     setIsSubmitting(true);
-    setGeneratedChallengeLink(null);
-    setCopiedChallengeLink(false);
+    // Removed challenge link state resets
 
-    if (values.generateChallengeLink && !currentUser) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to generate a challenge link.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-      router.push("/login?redirect=/create-quiz"); // or the current page with params
-      return;
-    }
-
+    // Removed currentUser check related to generateChallengeLink, as that feature is moved to /challenge page
+    
     toast({
-      title: values.generateChallengeLink ? "Generating Challenge..." : "Generating Quiz...",
+      title: "Generating Quiz...", // Simplified toast
       description: "Hold tight, your custom quiz is being crafted by AI!",
     });
 
@@ -149,48 +137,34 @@ export function QuizForm() {
         correctAnswer: q.correctAnswer,
       }));
 
-      if (values.generateChallengeLink && currentUser) {
-        const slug = uuidv4().slice(0, 8);
-        await addChallenge({
-          topic: values.topic,
-          subtopic: values.subtopic,
-          difficulty: values.difficulty,
-          numberOfQuestions: values.numberOfQuestions,
-          timeLimit: values.timeLimit,
-          additionalInstructions: values.additionalInstructions,
-          questions: quizQuestions,
-          challengerUid: currentUser.uid,
-          challengerName: currentUser.displayName || currentUser.email || "A friend",
-          isPublic: values.isPublic,
-        }, slug);
-        const link = `${window.location.origin}/challenge/${slug}`;
-        setGeneratedChallengeLink(link);
-        toast({ title: "Challenge Ready!", description: "Share the link below with your friend." });
+      // Logic for generating a challenge link has been removed from this form.
+      // This form now only generates quizzes for the current user to take immediately.
+      // The /challenge page is responsible for creating shareable challenge links.
+      
+      const quizId = startQuiz({
+        topic: values.topic,
+        subtopic: values.subtopic,
+        difficulty: values.difficulty,
+        questions: quizQuestions, 
+        config: aiInput, 
+        challengerName: challengerName || undefined, // Kept for fulfilling challenges if navigated here with params
+        timeLimit: values.timeLimit,
+        additionalInstructions: values.additionalInstructions,
+        // isPublic: values.isPublic, // isPublic removed from form values
+        // For self-taken quizzes, isPublic will default to false or be omitted in startQuiz if not provided
+      });
 
-      } else {
-        const quizId = startQuiz({
-          topic: values.topic,
-          subtopic: values.subtopic,
-          difficulty: values.difficulty,
-          questions: quizQuestions, // already enriched with IDs
-          config: aiInput, // This is GenerateQuizQuestionsInput
-          challengerName: challengerName || undefined,
-          timeLimit: values.timeLimit,
-          additionalInstructions: values.additionalInstructions,
-          isPublic: values.isPublic,
-        });
-
-        toast({
-          title: "Quiz Ready!",
-          description: `Your ${values.topic} quiz is generated. Good luck!`,
-        });
-        router.push(`/quiz/${quizId}`);
-      }
+      toast({
+        title: "Quiz Ready!",
+        description: `Your ${values.topic} quiz is generated. Good luck!`,
+      });
+      router.push(`/quiz/${quizId}`);
+      
     } catch (error) {
-      console.error("Error during quiz/challenge generation:", error);
+      console.error("Error during quiz generation:", error);
       toast({
         title: "Uh oh! Something went wrong.",
-        description: error instanceof Error ? error.message : "Could not complete generation. Please try again.",
+        description: error instanceof Error ? error.message : "Could not generate quiz. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -198,19 +172,7 @@ export function QuizForm() {
     }
   }
   
-  const handleCopyLink = () => {
-    if (generatedChallengeLink) {
-      navigator.clipboard.writeText(generatedChallengeLink)
-        .then(() => {
-          setCopiedChallengeLink(true);
-          toast({ title: "Link Copied!", description: "Challenge link copied to clipboard." });
-          setTimeout(() => setCopiedChallengeLink(false), 2000);
-        })
-        .catch(() => {
-          toast({ title: "Copy Failed", description: "Could not copy link. Please try manually.", variant: "destructive" });
-        });
-    }
-  };
+  // handleCopyLink function removed as challenge link generation is removed from this form.
 
 
   return (
@@ -308,7 +270,7 @@ export function QuizForm() {
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Time Limit (minutes)</FormLabel>
-                <Select onValueChange={(val) => field.onChange(parseInt(val))} defaultValue={String(field.value)}>
+                <Select onValueChange={(val) => field.onChange(val ? parseInt(val) : undefined)} defaultValue={field.value !== undefined ? String(field.value) : undefined}>
                     <FormControl>
                     <SelectTrigger>
                         <SelectValue placeholder="Select time limit" />
@@ -347,78 +309,21 @@ export function QuizForm() {
           )}
         />
 
-        <div className="space-y-4">
-            <FormField
-                control={form.control}
-                name="isPublic"
-                render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
-                    <FormControl>
-                    <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                    />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                    <FormLabel>
-                        Make this quiz public in the library
-                    </FormLabel>
-                    <FormDescription>
-                        Allow other users to find and take this quiz.
-                    </FormDescription>
-                    </div>
-                </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="generateChallengeLink"
-                render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
-                    <FormControl>
-                    <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                    />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                    <FormLabel>
-                        Generate a challenge link to share with others
-                    </FormLabel>
-                    <FormDescription>
-                        Creates a unique link to challenge a friend with this quiz. Requires login.
-                    </FormDescription>
-                    </div>
-                </FormItem>
-                )}
-            />
-        </div>
+        {/* Removed FormFields for isPublic and generateChallengeLink */}
         
         <Button type="submit" size="lg" className="w-full md:w-auto text-lg py-6 shadow-md" disabled={isSubmitting}>
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              {form.getValues("generateChallengeLink") ? "Generating Challenge..." : "Generating Quiz..."}
+              Generating Quiz...
             </>
           ) : (
-            form.getValues("generateChallengeLink") ? "Generate Challenge Link" : "Generate Quiz"
+            "Generate Quiz"
           )}
         </Button>
       </form>
 
-      {generatedChallengeLink && (
-        <div className="mt-8 p-4 border rounded-md bg-muted/50">
-            <Label htmlFor="challenge-link" className="text-base font-semibold">Your Challenge Link:</Label>
-            <div className="flex items-center gap-2 mt-2">
-            <Input id="challenge-link" type="text" value={generatedChallengeLink} readOnly className="text-sm bg-background" />
-            <Button onClick={handleCopyLink} variant="outline" size="icon" aria-label="Copy link">
-                {copiedChallengeLink ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">Share this link with your friend to start the challenge!</p>
-        </div>
-        )}
+      {/* Removed generatedChallengeLink display and copy UI */}
     </Form>
   );
 }
-
