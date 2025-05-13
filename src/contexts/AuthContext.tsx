@@ -8,22 +8,25 @@ import {
   signOut, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
-  signInWithPopup, // Import for Google Sign-In
+  signInWithPopup, 
   type User as FirebaseUser,
-  type AuthError
+  type AuthError,
+  updateProfile as updateFirebaseUserProfile // For updating Firebase Auth user profile
 } from 'firebase/auth';
-import { auth, GoogleAuthProvider } from '@/lib/firebase'; // Import GoogleAuthProvider
+import { auth, GoogleAuthProvider } from '@/lib/firebase'; 
 import { useRouter, useSearchParams } from 'next/navigation'; 
 import { useToast } from '@/hooks/use-toast';
-import { createUserProfileDocument, getUserProfile, recordUserLogin } from '@/lib/firestoreUtils';
+import { createUserProfileDocument, getUserProfile, recordUserLogin, updateUserProfile } from '@/lib/firestoreUtils';
+import type { UserProfileFirestoreData } from '@/types';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   loading: boolean;
   login: (email: string, pass: string) => Promise<FirebaseUser | null>;
   signup: (email: string, pass: string) => Promise<FirebaseUser | null>;
-  loginWithGoogle: () => Promise<FirebaseUser | null>; // Add Google login method
+  loginWithGoogle: () => Promise<FirebaseUser | null>; 
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>; // Added to refresh user data
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,9 +38,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams(); 
   const { toast } = useToast();
 
+  const refreshUser = async () => {
+    const user = auth.currentUser;
+    if (user) {
+      await user.reload();
+      setCurrentUser(auth.currentUser);
+    }
+  };
+
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user) {
+        await recordUserLogin(user.uid);
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -46,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleAuthError = (error: AuthError | Error, defaultMessage: string) => {
     console.error("Firebase Auth Error:", error);
     let message = defaultMessage;
-    if ('code' in error) { // Check if it's an AuthError
+    if ('code' in error) { 
       switch (error.code) {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
@@ -71,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         default:
           message = error.message || defaultMessage;
       }
-    } else { // Generic error
+    } else { 
         message = error.message || defaultMessage;
     }
     toast({
@@ -82,6 +97,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   }
 
+  const navigateAfterAuth = async (user: FirebaseUser) => {
+    const userProfile = await getUserProfile(user.uid);
+    const isProfileConsideredComplete = userProfile?.displayName && userProfile.birthdate && userProfile.bio;
+
+    if (!isProfileConsideredComplete) {
+      toast({
+        title: "Complete Your Profile",
+        description: "Please complete your profile to continue.",
+        duration: 5000,
+      });
+      router.push(`/profile?redirect=${searchParams.get('redirect') || '/dashboard'}`);
+    } else {
+      const redirectUrl = searchParams.get('redirect') || '/dashboard';
+      router.push(redirectUrl);
+    }
+  };
+
   const login = async (email: string, pass: string): Promise<FirebaseUser | null> => {
     setLoading(true);
     try {
@@ -90,8 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await recordUserLogin(userCredential.user.uid); 
       toast({ title: 'Logged In', description: 'Successfully logged in!' });
       
-      const redirectUrl = searchParams.get('redirect') || '/dashboard'; 
-      router.push(redirectUrl); 
+      await navigateAfterAuth(userCredential.user);
       return userCredential.user;
     } catch (error) {
       return handleAuthError(error as AuthError, 'Failed to log in.');
@@ -105,25 +136,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       const user = userCredential.user;
-      setCurrentUser(user);
       
+      // Update Firebase Auth user profile with displayName
+      await updateFirebaseUserProfile(user, { displayName: email.split('@')[0] });
+      
+      // Create Firestore profile document
       await createUserProfileDocument(user.uid, {
         email: user.email || undefined,
-        displayName: user.displayName || email.split('@')[0],
+        displayName: user.displayName || email.split('@')[0], // Use the (now updated) displayName from auth user
       });
       
-      toast({ title: 'Account Created', description: 'Welcome to MindMash! Consider completing your profile.' });
-      
-      const userProfile = await getUserProfile(user.uid);
-      const isProfileComplete = userProfile?.displayName && userProfile?.birthdate && userProfile.bio;
+      // Important: Reload user to get the updated displayName from Firebase Auth
+      await user.reload();
+      setCurrentUser(auth.currentUser); // Set current user from auth.currentUser after reload
 
-      if (!isProfileComplete) {
-        router.push(`/profile?redirect=${searchParams.get('redirect') || '/dashboard'}`);
-      } else {
-        const redirectUrl = searchParams.get('redirect') || '/dashboard';
-        router.push(redirectUrl);
-      }
-      return user;
+      toast({ title: 'Account Created', description: 'Welcome to MindMash! Please complete your profile.' });
+      
+      router.push(`/profile?redirect=${searchParams.get('redirect') || '/dashboard'}`); // Always redirect to profile after signup
+      return auth.currentUser; // Return the potentially updated user object
     } catch (error) {
       return handleAuthError(error as AuthError, 'Failed to sign up.');
     } finally {
@@ -137,29 +167,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      setCurrentUser(user);
+      setCurrentUser(user); // Set context with user from Google sign-in
 
-      // Check if user profile exists, if not create it
-      const userProfile = await getUserProfile(user.uid);
+      let userProfile = await getUserProfile(user.uid);
       if (!userProfile) {
-        await createUserProfileDocument(user.uid, {
-          email: user.email || undefined,
-          displayName: user.displayName || user.email?.split('@')[0],
-          photoURL: user.photoURL || undefined,
-        });
+        const profileDataToCreate: UserProfileFirestoreData = {
+            email: user.email || undefined,
+            displayName: user.displayName || user.email?.split('@')[0],
+            photoURL: user.photoURL || undefined,
+            // Initialize other fields for new profile
+            bio: '',
+            birthdate: '', // Ensure birthdate is empty to trigger profile completion
+            socialLinks: {},
+        };
+        await createUserProfileDocument(user.uid, profileDataToCreate);
+        userProfile = await getUserProfile(user.uid); // Re-fetch to get the created profile
+      } else {
+        // If profile exists, ensure photoURL from Google is updated if it's different or missing
+        if (user.photoURL && user.photoURL !== userProfile.photoURL) {
+            await updateUserProfile(user.uid, { photoURL: user.photoURL });
+        }
       }
+      
       await recordUserLogin(user.uid);
 
       toast({ title: 'Logged In with Google', description: 'Successfully logged in!' });
       
-      const isNewUserOrProfileIncomplete = !userProfile || !userProfile.displayName || !userProfile.birthdate || !userProfile.bio;
-
-      if (isNewUserOrProfileIncomplete) {
-        router.push(`/profile?redirect=${searchParams.get('redirect') || '/dashboard'}`);
-      } else {
-        const redirectUrl = searchParams.get('redirect') || '/dashboard';
-        router.push(redirectUrl);
-      }
+      await navigateAfterAuth(user); // Use user from Google result for navigation logic
       return user;
     } catch (error) {
       return handleAuthError(error as AuthError, 'Failed to log in with Google.');
@@ -195,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signup,
     loginWithGoogle,
     logout,
+    refreshUser,
   };
 
   return (
