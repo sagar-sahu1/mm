@@ -1,8 +1,8 @@
-"use client";
+${"use client"};
 
 import type { QuizQuestion } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // CardDescription removed
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState, useRef } from "react";
@@ -16,7 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-// QuizTimer is no longer imported or used here
+import { QuizTimer } from "./QuizTimer"; // Import QuizTimer
 
 interface QuizDisplayProps {
   question: QuizQuestion;
@@ -25,15 +25,21 @@ interface QuizDisplayProps {
   onAnswer: (answer: string) => void;
   isSubmitted: boolean; 
   showFeedback: boolean; 
+  perQuestionDuration: number; // Duration for the per-question timer
+  onPerQuestionTimeUp: () => void; // Callback when per-question timer ends
+  timerKey: string | number; // Key to reset the timer
 }
 
 export function QuizDisplay({ 
   question, 
-  questionNumber, 
-  totalQuestions, 
+  // questionNumber, // No longer used directly in this component for display
+  // totalQuestions, // No longer used directly in this component for display
   onAnswer, 
   isSubmitted, 
   showFeedback,
+  perQuestionDuration,
+  onPerQuestionTimeUp,
+  timerKey,
 }: QuizDisplayProps) {
   const [selectedValue, setSelectedValue] = useState<string | undefined>(question.userAnswer);
   const { activeQuiz } = useQuiz(); 
@@ -113,7 +119,7 @@ export function QuizDisplay({
         }
         
         const errorCode = event.error || "unknown_error";
-        console.warn( // Changed from console.error to console.warn to reduce noise for common TTS issues
+        console.warn( 
           `Speech synthesis error. Code: ${errorCode}. Utterance: "${event.utterance?.text?.substring(0,50)}..."`,
           "Full event:", event
         );
@@ -140,7 +146,7 @@ export function QuizDisplay({
 
   return (
     <Card className="w-full shadow-lg">
-      <CardHeader className="relative">
+      <CardHeader className="relative pb-2">
         <div className="flex justify-between items-start">
             <div className="flex-grow mr-2">
                 <CardTitle className="text-2xl leading-relaxed">{question.question}</CardTitle>
@@ -160,11 +166,25 @@ export function QuizDisplay({
                         </Tooltip>
                     </TooltipProvider>
                 )}
-                {/* Per-question timer has been moved to the parent QuizPage */}
             </div>
         </div>
+        {/* Per-question timer displayed below the question title */}
+        {perQuestionDuration > 0 && !activeQuiz?.completedAt && (
+          <div className="mt-3">
+            <QuizTimer
+              timerKey={timerKey}
+              duration={perQuestionDuration}
+              onTimeUp={onPerQuestionTimeUp}
+              isPaused={!!activeQuiz?.completedAt || isSubmitted}
+              compact={false} // Use the non-compact version here
+            />
+          </div>
+        )}
+         {perQuestionDuration <= 0 && !activeQuiz?.completedAt && (
+             <div className="text-center text-muted-foreground p-2 mt-3 border rounded-lg bg-muted/50 text-sm">No time limit for this question.</div>
+          )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-4"> {/* Adjusted padding-top for CardContent */}
         <RadioGroup
           value={selectedValue}
           onValueChange={handleValueChange}
@@ -205,3 +225,4 @@ export function QuizDisplay({
     </Card>
   );
 }
+

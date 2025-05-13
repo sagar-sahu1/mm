@@ -1,5 +1,5 @@
 
-"use client";
+'use client';
 
 import type { ReactNode} from 'react';
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { GenerateQuizQuestionsInput } from '@/ai/flows/generate-quiz-questions';
 
 
-interface StartQuizData extends Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions' | 'config' | 'timeLimitMinutes' | 'perQuestionTimeSeconds'> {
+interface StartQuizData extends Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions' | 'config' | 'timeLimitMinutes' | 'perQuestionTimeSeconds' | 'startedAt'> {
   questions: Omit<QuizQuestion, 'id'>[]; // Raw questions from AI
   config: GenerateQuizQuestionsInput; // AI input config
   challengerName?: string;
@@ -52,10 +52,13 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     const enrichedQuestions = quizData.questions.map(q => ({...q, id: uuidv4()}));
     
     let perQuestionTimeSeconds: number | undefined = undefined;
-    if (quizData.timeLimit !== undefined && quizData.timeLimit > 0 && enrichedQuestions.length > 0) {
+    // Calculate perQuestionTimeSeconds only if timeLimit is positive and there are questions
+    if (quizData.timeLimit && quizData.timeLimit > 0 && enrichedQuestions.length > 0) {
       perQuestionTimeSeconds = Math.floor((quizData.timeLimit * 60) / enrichedQuestions.length);
-      if (perQuestionTimeSeconds < 10) perQuestionTimeSeconds = 10; // Minimum 10 seconds per question if total time is very short
+      // Ensure a minimum time per question, e.g., 10 seconds, if calculated time is too short
+      if (perQuestionTimeSeconds < 10) perQuestionTimeSeconds = 10; 
     }
+
 
     const newQuiz: Quiz = {
       id: newQuizId,
@@ -67,10 +70,11 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       createdAt: Date.now(),
       currentQuestionIndex: 0,
       challengerName: quizData.challengerName,
-      timeLimitMinutes: quizData.timeLimit, // Store the original time limit from form
-      perQuestionTimeSeconds: perQuestionTimeSeconds, // Store calculated per question time
+      timeLimitMinutes: quizData.timeLimit, 
+      perQuestionTimeSeconds: perQuestionTimeSeconds, 
       additionalInstructions: quizData.additionalInstructions,
       isPublic: quizData.isPublic,
+      startedAt: (quizData.timeLimit !== undefined && quizData.timeLimit > 0) ? Date.now() : undefined, // Set startedAt if there's a time limit
     };
     setActiveQuiz(newQuiz);
     setAllQuizzes(prev => [newQuiz, ...prev.filter(q => q.id !== newQuizId)]);
@@ -80,12 +84,11 @@ export function QuizProvider({ children }: { children: ReactNode }) {
 
   const answerQuestion = useCallback((questionId: string, answer: string) => {
     setActiveQuiz(prevQuiz => {
-      if (!prevQuiz || prevQuiz.completedAt) return prevQuiz; // Don't update if already completed
+      if (!prevQuiz || prevQuiz.completedAt) return prevQuiz; 
       const updatedQuestions = prevQuiz.questions.map(q =>
         q.id === questionId ? { ...q, userAnswer: answer } : q
       );
       const updatedQuiz = { ...prevQuiz, questions: updatedQuestions };
-      // Also update in allQuizzes for persistence if quiz is interrupted
       setAllQuizzes(prevAll => prevAll.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
       return updatedQuiz;
     });
@@ -128,7 +131,7 @@ export function QuizProvider({ children }: { children: ReactNode }) {
 
   const submitQuiz = useCallback(() => {
     setActiveQuiz(prevQuiz => {
-      if (!prevQuiz || prevQuiz.completedAt) return prevQuiz; // Avoid double submission
+      if (!prevQuiz || prevQuiz.completedAt) return prevQuiz; 
       let score = 0;
       const updatedQuestions = prevQuiz.questions.map(q => {
         const isCorrect = q.userAnswer === q.correctAnswer;
@@ -140,9 +143,9 @@ export function QuizProvider({ children }: { children: ReactNode }) {
         questions: updatedQuestions,
         score,
         completedAt: Date.now(),
+        totalTimeTaken: prevQuiz.startedAt ? Math.floor((Date.now() - prevQuiz.startedAt) / 1000) : undefined,
       };
       setAllQuizzes(prev => prev.map(q => q.id === completedQuiz.id ? completedQuiz : q));
-      // Remove from active quiz temp storage after submission
       localStorage.removeItem('mindmash-active-quiz-temp');
       return completedQuiz; 
     });
@@ -152,13 +155,20 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     setIsLoadingQuiz(true);
     const quiz = allQuizzes.find(q => q.id === quizId);
     if (quiz) {
-      setActiveQuiz(quiz);
+      let loadedQuiz = { ...quiz };
+      // If the quiz has a time limit and hasn't been marked as started, mark it now.
+      // This is important if the user navigates away and comes back.
+      if (loadedQuiz.timeLimitMinutes && loadedQuiz.timeLimitMinutes > 0 && !loadedQuiz.startedAt && !loadedQuiz.completedAt) {
+        loadedQuiz.startedAt = Date.now();
+        setAllQuizzes(prevAll => prevAll.map(q => q.id === loadedQuiz.id ? loadedQuiz : q));
+      }
+      setActiveQuiz(loadedQuiz);
       setIsLoadingQuiz(false);
-      return quiz;
+      return loadedQuiz;
     }
     setIsLoadingQuiz(false);
     return null;
-  }, [allQuizzes]);
+  }, [allQuizzes, setAllQuizzes]);
 
   const clearActiveQuiz = useCallback(() => {
     setActiveQuiz(null);
@@ -181,33 +191,31 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     }
   }, [setAllQuizzes, activeQuiz]);
 
-  // Persist active quiz to local storage for resilience against refreshes, but not if completed
   useEffect(() => {
     if (activeQuiz && !activeQuiz.completedAt) {
       localStorage.setItem('mindmash-active-quiz-temp', JSON.stringify(activeQuiz));
     } else if (activeQuiz && activeQuiz.completedAt) {
-      // If quiz gets completed, remove it from the temp active storage
       localStorage.removeItem('mindmash-active-quiz-temp');
     }
   }, [activeQuiz]);
 
-  // Load active quiz from local storage on initial mount if not completed
   useEffect(() => {
     const savedActiveQuiz = localStorage.getItem('mindmash-active-quiz-temp');
     if (savedActiveQuiz) {
       try {
         const parsedQuiz = JSON.parse(savedActiveQuiz) as Quiz;
-        // Only load if it's a valid quiz object and not completed
         if (parsedQuiz.id && parsedQuiz.questions && typeof parsedQuiz.currentQuestionIndex === 'number' && !parsedQuiz.completedAt) {
-          // Check if we are on the quiz page for this quiz, otherwise don't load it as active
            if (window.location.pathname.startsWith(`/quiz/${parsedQuiz.id}`)) {
-             setActiveQuiz(parsedQuiz);
+             // If loading a timed quiz that wasn't marked as started, or if startedAt is old, update it.
+             let quizToLoad = { ...parsedQuiz };
+             if (quizToLoad.timeLimitMinutes && quizToLoad.timeLimitMinutes > 0 && !quizToLoad.startedAt) {
+                quizToLoad.startedAt = Date.now();
+             }
+             setActiveQuiz(quizToLoad);
            } else {
-             // If not on the quiz page, perhaps clear it to avoid stale active quiz
              localStorage.removeItem('mindmash-active-quiz-temp');
            }
         } else if (parsedQuiz.completedAt) {
-            // If it was completed but somehow still in temp storage, remove it
             localStorage.removeItem('mindmash-active-quiz-temp');
         }
       } catch (e) {

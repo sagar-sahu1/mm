@@ -1,4 +1,3 @@
-
 import type { GenerateQuizQuestionsInput } from '@/ai/flows/generate-quiz-questions';
 
 export interface QuizQuestion {
@@ -18,6 +17,7 @@ export interface Quiz {
   questions: QuizQuestion[];
   config: GenerateQuizQuestionsInput; // Original input to AI, now includes new fields
   createdAt: number; // Timestamp
+  startedAt?: number; // Optional: Timestamp when the quiz was first started/loaded by the user for timed quizzes
   score?: number; // Calculated after completion
   completedAt?: number; // Timestamp
   currentQuestionIndex: number; // To track progress

@@ -1,17 +1,18 @@
-"use client";
+
+'use client';
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuiz } from "@/contexts/QuizContext";
 import { QuizDisplay } from "@/components/quiz/QuizDisplay";
 import { QuizProgressBar } from "@/components/quiz/QuizProgressBar";
-import { QuizTimer } from "@/components/quiz/QuizTimer";
+// QuizTimer import removed as it's now in QuizDisplay
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CheckSquare, Loader2, AlertTriangle, Home, TimerIcon, HelpCircleIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Link from "next/link";
-import { DEFAULT_QUIZ_TIMER_SECONDS } from "@/lib/constants";
+// DEFAULT_QUIZ_TIMER_SECONDS is no longer directly used here for duration calculation
 
 
 export default function QuizPage() {
@@ -30,38 +31,44 @@ export default function QuizPage() {
   }, [quizId, loadQuizFromStorage]);
 
 
-  // Effect to initialize/reset overallTimeLeft when the quiz (ID, completion, timeLimit) changes
   useEffect(() => {
     if (activeQuiz && !activeQuiz.completedAt && typeof activeQuiz.timeLimitMinutes === 'number' && activeQuiz.timeLimitMinutes > 0) {
-      setOverallTimeLeft(activeQuiz.timeLimitMinutes * 60);
-    } else {
-      setOverallTimeLeft(null); // No timer if no time limit, or quiz completed, or time limit not a positive number
-    }
-  }, [activeQuiz?.id, activeQuiz?.completedAt, activeQuiz?.timeLimitMinutes]);
+      // Initialize with total seconds from quiz start or remaining if already started
+      const now = Date.now();
+      const elapsedTimeSeconds = activeQuiz.startedAt ? Math.floor((now - activeQuiz.startedAt) / 1000) : 0;
+      const initialRemainingSeconds = (activeQuiz.timeLimitMinutes * 60) - elapsedTimeSeconds;
+      setOverallTimeLeft(initialRemainingSeconds > 0 ? initialRemainingSeconds : 0);
 
-  // Effect to handle the countdown interval for overallTimeLeft
+      if (!activeQuiz.startedAt) {
+        // Mark quiz as started if not already
+        // This part would ideally be in QuizContext when a quiz is first loaded/started on the page
+        // For simplicity, we'll assume activeQuiz could be updated to include 'startedAt'
+        // Or, this logic is implicitly handled if the quiz is always fresh or reloaded.
+      }
+
+    } else {
+      setOverallTimeLeft(null); 
+    }
+  }, [activeQuiz?.id, activeQuiz?.completedAt, activeQuiz?.timeLimitMinutes, activeQuiz?.startedAt]);
+
   useEffect(() => {
-    if (overallTimeLeft === null || overallTimeLeft <= 0 || (activeQuiz && activeQuiz.completedAt)) {
-      // Timer is not active, has expired, or the quiz is already completed
+    if (overallTimeLeft === null || (activeQuiz && activeQuiz.completedAt)) {
+      return;
+    }
+
+    if (overallTimeLeft <= 0) {
+      if (activeQuiz && !activeQuiz.completedAt) { 
+        submitQuiz(); // Submit quiz when overall timer reaches 0
+      }
       return;
     }
 
     const intervalId = setInterval(() => {
-      setOverallTimeLeft(prev => {
-        // prev should not be null here due to the outer check, but defensive check is okay
-        if (prev === null || prev <= 1) { 
-          clearInterval(intervalId);
-          if (activeQuiz && !activeQuiz.completedAt) { // Ensure submitQuiz is called only once
-            submitQuiz();
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
+      setOverallTimeLeft(prev => (prev !== null && prev > 0 ? prev - 1 : 0));
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [overallTimeLeft, activeQuiz, submitQuiz]); // activeQuiz needed for completedAt check, submitQuiz for calling
+  }, [overallTimeLeft, activeQuiz, submitQuiz]);
 
 
   const handleAnswer = (answer: string) => {
@@ -88,27 +95,19 @@ export default function QuizPage() {
       if (activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1) {
         nextQuestion();
       } else {
-        handleSubmitQuiz(); 
+        // If it's the last question and per-question timer expires, submit the quiz
+        // Only submit if overall quiz is not yet completed.
+        if (!activeQuiz.completedAt) {
+          submitQuiz();
+        }
       }
     }
-  }, [activeQuiz, nextQuestion, handleSubmitQuiz]);
+  }, [activeQuiz, nextQuestion, submitQuiz]);
 
   const currentQ = activeQuiz?.questions[activeQuiz.currentQuestionIndex];
-
-  let perQuestionDuration = DEFAULT_QUIZ_TIMER_SECONDS; 
-  if (activeQuiz) {
-      if (activeQuiz.timeLimitMinutes === 0) { 
-          perQuestionDuration = activeQuiz.perQuestionTimeSeconds !== undefined && activeQuiz.perQuestionTimeSeconds > 0 
-                                  ? activeQuiz.perQuestionTimeSeconds 
-                                  : 0; 
-      } 
-      else if (typeof activeQuiz.timeLimitMinutes === 'number' && activeQuiz.timeLimitMinutes > 0 && activeQuiz.perQuestionTimeSeconds !== undefined) {
-          perQuestionDuration = activeQuiz.perQuestionTimeSeconds;
-      } 
-      else {
-          perQuestionDuration = 0; 
-      }
-  }
+  
+  // Per-question duration is derived from activeQuiz.perQuestionTimeSeconds (calculated in QuizContext)
+  const perQuestionDuration = activeQuiz?.perQuestionTimeSeconds || 0;
 
 
   if (!isClient || isLoadingQuiz) {
@@ -151,7 +150,7 @@ export default function QuizPage() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      <Card className="shadow-md">
+      <Card className="shadow-md bg-card">
         <CardHeader>
           <CardTitle className="text-3xl font-bold">{activeQuiz.topic} Quiz</CardTitle>
           <CardDescription className="text-md text-muted-foreground">
@@ -165,14 +164,21 @@ export default function QuizPage() {
         {/* Left Panel: Question Display and Navigation */}
         <div className="lg:w-2/3 space-y-6">
           {currentQ && (
-            <QuizDisplay
-              question={currentQ}
-              questionNumber={activeQuiz.currentQuestionIndex + 1}
-              totalQuestions={activeQuiz.questions.length}
-              onAnswer={handleAnswer}
-              isSubmitted={!!activeQuiz.completedAt}
-              showFeedback={false} // Feedback shown on results page
-            />
+            <Card className="shadow-lg bg-green-500/10 border-green-500">
+              <CardContent className="p-0"> {/* Remove padding if QuizDisplay handles it */}
+                <QuizDisplay
+                  question={currentQ}
+                  questionNumber={activeQuiz.currentQuestionIndex + 1}
+                  totalQuestions={activeQuiz.questions.length}
+                  onAnswer={handleAnswer}
+                  isSubmitted={!!activeQuiz.completedAt}
+                  showFeedback={false} // Feedback shown on results page only
+                  perQuestionDuration={perQuestionDuration}
+                  onPerQuestionTimeUp={handlePerQuestionTimeUp}
+                  timerKey={`per-q-${currentQ.id}-${activeQuiz.currentQuestionIndex}`}
+                />
+              </CardContent>
+            </Card>
           )}
           <div className="flex justify-between items-center pt-4">
             <Button
@@ -219,9 +225,9 @@ export default function QuizPage() {
           </div>
         </div>
 
-        {/* Right Panel: Quiz Status, Timers, and Progress Bar */}
-        <div className="lg:w-1/3 space-y-6 p-4 border rounded-lg shadow-md bg-card">
-          <Card>
+        {/* Right Panel: Quiz Status, Overall Timer, and Progress Bar */}
+        <div className="lg:w-1/3 space-y-6 p-4 border rounded-lg shadow-md bg-blue-500/10 border-blue-500">
+          <Card className="bg-card">
             <CardHeader>
               <CardTitle className="text-xl">Quiz Status</CardTitle>
             </CardHeader>
@@ -233,7 +239,7 @@ export default function QuizPage() {
               
               {(activeQuiz.timeLimitMinutes !== undefined && activeQuiz.timeLimitMinutes > 0 && overallTimeLeft !== null) && (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center text-muted-foreground"><TimerIcon className="h-4 w-4 mr-2 text-primary" /> Overall Time:</span>
+                  <span className="flex items-center text-muted-foreground"><TimerIcon className="h-4 w-4 mr-2 text-primary" /> Overall Time Left:</span>
                   <span className={`font-semibold ${overallTimeLeft <= 60 ? 'text-destructive animate-pulse' : 'text-foreground'}`}>{formatOverallTime(overallTimeLeft)}</span>
                 </div>
               )}
@@ -246,18 +252,9 @@ export default function QuizPage() {
             </CardContent>
           </Card>
           
-          {currentQ && perQuestionDuration > 0 && !activeQuiz?.completedAt && (
-            <QuizTimer
-              timerKey={`per-q-${currentQ.id}-${activeQuiz.currentQuestionIndex}`} // More specific key
-              duration={perQuestionDuration}
-              onTimeUp={handlePerQuestionTimeUp}
-              isPaused={!!activeQuiz?.completedAt}
-              compact={false}
-            />
-          )}
-           {currentQ && perQuestionDuration <= 0 && !activeQuiz?.completedAt && (
-             <div className="text-center text-muted-foreground p-4 border rounded-lg shadow bg-muted">No time limit for this question.</div>
-          )}
+           {activeQuiz.completedAt && (
+             <div className="text-center text-green-600 font-semibold p-4 border-green-500 bg-green-500/10 rounded-lg shadow">Quiz Completed!</div>
+           )}
           
           <QuizProgressBar
             questions={activeQuiz.questions}
@@ -270,3 +267,4 @@ export default function QuizPage() {
     </div>
   );
 }
+
