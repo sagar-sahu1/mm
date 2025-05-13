@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { QuizQuestion } from "@/types";
@@ -16,18 +17,33 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { QuizTimer } from "./QuizTimer"; // For compact timer
+import { DEFAULT_QUIZ_TIMER_SECONDS } from "@/lib/constants";
+
 
 interface QuizDisplayProps {
   question: QuizQuestion;
   questionNumber: number;
   totalQuestions: number;
   onAnswer: (answer: string) => void;
-  isSubmitted: boolean; // To show correct/incorrect answers after submission or if quiz is completed
+  isSubmitted: boolean; 
+  showFeedback: boolean; // New prop to control feedback visibility
+  perQuestionTimeSeconds?: number; // For the compact timer
+  onPerQuestionTimeUp?: () => void; // For the compact timer
 }
 
-export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer, isSubmitted }: QuizDisplayProps) {
+export function QuizDisplay({ 
+  question, 
+  questionNumber, 
+  totalQuestions, 
+  onAnswer, 
+  isSubmitted, 
+  showFeedback,
+  perQuestionTimeSeconds,
+  onPerQuestionTimeUp
+}: QuizDisplayProps) {
   const [selectedValue, setSelectedValue] = useState<string | undefined>(question.userAnswer);
-  const { activeQuiz } = useQuiz(); // Get activeQuiz for completion status
+  const { activeQuiz } = useQuiz(); 
   const { accessibility } = useTheme();
   const { toast } = useToast();
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -36,13 +52,15 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
 
   useEffect(() => {
     setSelectedValue(question.userAnswer);
+    // Cancel any ongoing speech for the previous question
     if (window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
-      utteranceRef.current = null;
+      utteranceRef.current = null; 
     }
   }, [question.id, question.userAnswer]);
 
+  // Cleanup speech synthesis on component unmount
   useEffect(() => {
     return () => {
       if (window.speechSynthesis && window.speechSynthesis.speaking && utteranceRef.current) {
@@ -55,21 +73,20 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
 
 
   const handleValueChange = (value: string) => {
-    // Prevent changing answer if quiz is submitted/completed
     if (isSubmitted || activeQuiz?.completedAt) return; 
     setSelectedValue(value);
     onAnswer(value);
   };
 
   const getOptionStyle = (option: string) => {
-    if (!isSubmitted) return ""; // No special styling if quiz is ongoing and not yet submitted for review
+    if (!showFeedback) return ""; 
     if (option === question.correctAnswer) return "text-green-600 dark:text-green-400 font-semibold";
     if (option === question.userAnswer && option !== question.correctAnswer) return "text-red-600 dark:text-red-400 line-through";
     return "text-muted-foreground";
   };
 
   const getOptionIcon = (option: string) => {
-    if (!isSubmitted) return null;
+    if (!showFeedback) return null;
     if (option === question.correctAnswer) return <CheckCircle className="h-5 w-5 text-green-500 ml-2" />;
     if (option === question.userAnswer && option !== question.correctAnswer) return <XCircle className="h-5 w-5 text-red-500 ml-2" />;
     return null;
@@ -86,13 +103,15 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
     }
     
     if (window.speechSynthesis) {
+      // Cancel any previous speech before starting a new one
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(question.question);
-      utteranceRef.current = utterance;
+      utteranceRef.current = utterance; // Store reference to the current utterance
 
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => {
+        // Only update state if this is the utterance that just ended
         if (utteranceRef.current === utterance) {
           setIsSpeaking(false);
           utteranceRef.current = null;
@@ -111,12 +130,14 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
         );
         
         let userMessage = "Could not play audio for the question.";
+        // Check if event.error is a non-empty string before appending
         if (event.error && typeof event.error === 'string' && event.error.trim() !== "") {
             userMessage += ` Reason: ${event.error}. Please check browser permissions and TTS settings.`;
-        } else if (event.error) {
+        } else if (event.error) { // If event.error is an object or other non-string type
              userMessage += ` Error code: ${event.error}. Please check browser permissions and TTS settings.`;
         }
          else {
+            // If event.error is null, undefined, or an empty string
             userMessage += " An unspecified Text-to-Speech error occurred.";
         }
         toast({ title: "Speech Error", description: userMessage, variant: "destructive" });
@@ -131,20 +152,19 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
   return (
     <Card className="w-full shadow-lg">
       <CardHeader className="relative">
-        <div className="flex justify-between items-center">
-            <div className="flex-grow mr-2"> {/* Added mr-2 for spacing from icons */}
+        <div className="flex justify-between items-start"> {/* items-start to align title and icons block at the top */}
+            <div className="flex-grow mr-2">
                  <CardDescription className="text-base">
                     Question {questionNumber} of {totalQuestions}
                 </CardDescription>
                 <CardTitle className="text-2xl leading-relaxed mt-1">{question.question}</CardTitle>
             </div>
-            {/* Container for TTS and potentially other icons/elements like a compact timer if moved here */}
-            <div className="flex items-center space-x-1 shrink-0">
+            <div className="flex flex-col items-end space-y-1 shrink-0"> {/* Container for TTS and compact timer */}
                 {accessibility.textToSpeech && (
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={handleSpeak} aria-label={isSpeaking ? "Stop speaking" : "Speak question"} className="ml-auto shrink-0"> {/* ml-auto if it's the only child, or adjust */}
+                                <Button variant="ghost" size="icon" onClick={handleSpeak} aria-label={isSpeaking ? "Stop speaking" : "Speak question"} className="shrink-0">
                                     {isSpeaking ? <Loader2 className="h-5 w-5 animate-spin" /> : (question.question ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />) }
                                 </Button>
                             </TooltipTrigger>
@@ -154,7 +174,18 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
                         </Tooltip>
                     </TooltipProvider>
                 )}
-                {/* If a compact timer were to be placed here, it would go in this flex container */}
+                {/* Compact Timer */}
+                {onPerQuestionTimeUp && perQuestionTimeSeconds !== undefined && perQuestionTimeSeconds > 0 && !activeQuiz?.completedAt && (
+                  <div className="w-24"> {/* Adjust width as needed */}
+                    <QuizTimer
+                      timerKey={`compact-${question.id}`}
+                      duration={perQuestionTimeSeconds}
+                      onTimeUp={onPerQuestionTimeUp}
+                      isPaused={isSubmitted || !!activeQuiz?.completedAt}
+                      compact={true} // Add a compact prop to QuizTimer for minimal display
+                    />
+                  </div>
+                )}
             </div>
         </div>
       </CardHeader>
@@ -163,8 +194,7 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
           value={selectedValue}
           onValueChange={handleValueChange}
           className="space-y-3"
-          // Disable radio group if the quiz is submitted (i.e., completed and in review mode)
-          disabled={isSubmitted}
+          disabled={isSubmitted || !!activeQuiz?.completedAt}
         >
           {question.options.map((option, index) => (
             <Label
@@ -172,9 +202,9 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
               htmlFor={`${question.id}-option-${index}`}
               className={`flex items-center space-x-3 p-4 border rounded-lg transition-colors
                 ${!isSubmitted && selectedValue === option ? 'ring-2 ring-primary border-primary bg-primary/5 cursor-pointer hover:bg-accent/10' : 'cursor-pointer hover:bg-accent/10'}
-                ${isSubmitted && option === question.correctAnswer ? 'border-green-500 bg-green-500/10' : ''}
-                ${isSubmitted && option === question.userAnswer && option !== question.correctAnswer ? 'border-red-500 bg-red-500/10' : ''}
-                ${isSubmitted ? 'cursor-default' : ''} 
+                ${showFeedback && option === question.correctAnswer ? 'border-green-500 bg-green-500/10' : ''}
+                ${showFeedback && option === question.userAnswer && option !== question.correctAnswer ? 'border-red-500 bg-red-500/10' : ''}
+                ${isSubmitted || activeQuiz?.completedAt ? 'cursor-default' : ''} 
               `}
             >
               <RadioGroupItem value={option} id={`${question.id}-option-${index}`} />
@@ -183,8 +213,7 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
             </Label>
           ))}
         </RadioGroup>
-        {/* Show correct answer info only if submitted and user's answer was incorrect */}
-        {isSubmitted && question.userAnswer !== question.correctAnswer && (
+        {showFeedback && question.userAnswer !== question.correctAnswer && (
           <Card className="mt-4 border-blue-500 bg-blue-500/10">
             <CardContent className="p-4">
                 <div className="flex items-start">
@@ -201,3 +230,4 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
     </Card>
   );
 }
+

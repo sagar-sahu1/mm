@@ -51,7 +51,9 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
         <CardHeader>
           <CardTitle className="text-4xl font-bold">Quiz Results</CardTitle>
           <CardDescription className="text-xl text-muted-foreground">
-            Topic: <span className="font-semibold text-primary">{quiz.topic}</span> | Difficulty: <span className="font-semibold text-primary capitalize">{quiz.difficulty}</span>
+            Topic: <span className="font-semibold text-primary">{quiz.topic}</span>
+            {quiz.subtopic && ` (${quiz.subtopic})`} | 
+            Difficulty: <span className="font-semibold text-primary capitalize">{quiz.difficulty}</span>
           </CardDescription>
           {quiz.challengerName && (
             <p className="text-md text-muted-foreground mt-2 flex items-center justify-center">
@@ -70,8 +72,8 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
           <Progress value={scorePercentage} aria-label={`Score: ${scorePercentage}%`} className="h-4 rounded-full" />
           
           <div className="flex flex-wrap gap-4 justify-center pt-4">
-            <Button asChild size="lg">
-              <Link href={`/create-quiz?topic=${encodeURIComponent(quiz.topic)}&difficulty=${quiz.difficulty}&questions=${quiz.questions.length}${quiz.challengerName ? `&challengerName=${encodeURIComponent(quiz.challengerName)}` : ''}`}>
+             <Button asChild size="lg">
+              <Link href={`/create-quiz?topic=${encodeURIComponent(quiz.topic)}&difficulty=${quiz.difficulty}&questions=${quiz.questions.length}${quiz.subtopic ? `&subtopic=${encodeURIComponent(quiz.subtopic)}` : ''}${quiz.timeLimitMinutes ? `&timeLimit=${quiz.timeLimitMinutes}` : ''}${quiz.challengerName ? `&challengerName=${encodeURIComponent(quiz.challengerName)}` : ''}`}>
                 <RotateCcw className="mr-2 h-5 w-5" /> Try Again
               </Link>
             </Button>
@@ -114,8 +116,10 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
                       question={q}
                       questionNumber={index + 1}
                       totalQuestions={quiz.questions.length}
-                      onAnswer={() => {}}
-                      isSubmitted={true}
+                      onAnswer={() => {}} // No action needed here
+                      isSubmitted={true} // Always true in results
+                      showFeedback={true} // Show feedback in results
+                      // No per-question timer needed in results display
                     />
                 </AccordionContent>
               </AccordionItem>
@@ -126,3 +130,4 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
     </div>
   );
 }
+

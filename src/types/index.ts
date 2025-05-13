@@ -21,7 +21,8 @@ export interface Quiz {
   score?: number; // Calculated after completion
   completedAt?: number; // Timestamp
   currentQuestionIndex: number; // To track progress
-  timeLimit?: number; // Optional: total quiz time limit in minutes
+  timeLimitMinutes?: number; // Optional: total quiz time limit in minutes, from form
+  perQuestionTimeSeconds?: number; // Optional: calculated time per question if total time limit is set
   totalTimeTaken?: number; // Optional: seconds
   challengerName?: string; // Optional: name of the user who challenged
   additionalInstructions?: string; // Optional: instructions given to AI
@@ -30,4 +31,5 @@ export interface Quiz {
 
 // For storing quizzes in localStorage, we might simplify or store an array of Quizzes.
 // For QuizContext, we might store the activeQuiz: Quiz | null.
+
 

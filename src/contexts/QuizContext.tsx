@@ -10,13 +10,13 @@ import { v4 as uuidv4 } from 'uuid';
 import type { GenerateQuizQuestionsInput } from '@/ai/flows/generate-quiz-questions';
 
 
-interface StartQuizData extends Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions' | 'config'> {
+interface StartQuizData extends Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions' | 'config' | 'timeLimitMinutes' | 'perQuestionTimeSeconds'> {
   questions: Omit<QuizQuestion, 'id'>[]; // Raw questions from AI
   config: GenerateQuizQuestionsInput; // AI input config
   challengerName?: string;
   // Add new fields from the form
   subtopic?: string;
-  timeLimit?: number; // in minutes
+  timeLimit?: number; // in minutes from form, maps to timeLimitMinutes
   additionalInstructions?: string;
   isPublic?: boolean;
 }
@@ -51,17 +51,24 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     const newQuizId = uuidv4();
     const enrichedQuestions = quizData.questions.map(q => ({...q, id: uuidv4()}));
     
+    let perQuestionTimeSeconds: number | undefined = undefined;
+    if (quizData.timeLimit !== undefined && quizData.timeLimit > 0 && enrichedQuestions.length > 0) {
+      perQuestionTimeSeconds = Math.floor((quizData.timeLimit * 60) / enrichedQuestions.length);
+      if (perQuestionTimeSeconds < 10) perQuestionTimeSeconds = 10; // Minimum 10 seconds per question if total time is very short
+    }
+
     const newQuiz: Quiz = {
       id: newQuizId,
       topic: quizData.topic,
       subtopic: quizData.subtopic,
       difficulty: quizData.difficulty,
       questions: enrichedQuestions,
-      config: quizData.config, // This is GenerateQuizQuestionsInput
+      config: quizData.config, 
       createdAt: Date.now(),
       currentQuestionIndex: 0,
       challengerName: quizData.challengerName,
-      timeLimit: quizData.timeLimit,
+      timeLimitMinutes: quizData.timeLimit, // Store the original time limit from form
+      perQuestionTimeSeconds: perQuestionTimeSeconds, // Store calculated per question time
       additionalInstructions: quizData.additionalInstructions,
       isPublic: quizData.isPublic,
     };
@@ -73,48 +80,55 @@ export function QuizProvider({ children }: { children: ReactNode }) {
 
   const answerQuestion = useCallback((questionId: string, answer: string) => {
     setActiveQuiz(prevQuiz => {
-      if (!prevQuiz) return null;
+      if (!prevQuiz || prevQuiz.completedAt) return prevQuiz; // Don't update if already completed
       const updatedQuestions = prevQuiz.questions.map(q =>
         q.id === questionId ? { ...q, userAnswer: answer } : q
       );
-      return { ...prevQuiz, questions: updatedQuestions };
+      const updatedQuiz = { ...prevQuiz, questions: updatedQuestions };
+      // Also update in allQuizzes for persistence if quiz is interrupted
+      setAllQuizzes(prevAll => prevAll.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
+      return updatedQuiz;
     });
-  }, []);
+  }, [setAllQuizzes]);
 
   const nextQuestion = useCallback(() => {
     setActiveQuiz(prevQuiz => {
-      if (!prevQuiz || prevQuiz.currentQuestionIndex >= prevQuiz.questions.length - 1) {
+      if (!prevQuiz || prevQuiz.completedAt || prevQuiz.currentQuestionIndex >= prevQuiz.questions.length - 1) {
         return prevQuiz;
       }
-      return { ...prevQuiz, currentQuestionIndex: prevQuiz.currentQuestionIndex + 1 };
+      const newIndex = prevQuiz.currentQuestionIndex + 1;
+      const updatedQuiz = { ...prevQuiz, currentQuestionIndex: newIndex };
+      setAllQuizzes(prevAll => prevAll.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
+      return updatedQuiz;
     });
-  }, []);
+  }, [setAllQuizzes]);
 
   const previousQuestion = useCallback(() => {
     setActiveQuiz(prevQuiz => {
-      if (!prevQuiz || prevQuiz.currentQuestionIndex <= 0) {
+      if (!prevQuiz || prevQuiz.completedAt || prevQuiz.currentQuestionIndex <= 0) {
         return prevQuiz;
       }
-      return { ...prevQuiz, currentQuestionIndex: prevQuiz.currentQuestionIndex - 1 };
+      const newIndex = prevQuiz.currentQuestionIndex - 1;
+      const updatedQuiz = { ...prevQuiz, currentQuestionIndex: newIndex };
+      setAllQuizzes(prevAll => prevAll.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
+      return updatedQuiz;
     });
-  }, []);
+  }, [setAllQuizzes]);
 
   const navigateToQuestion = useCallback((questionIndex: number) => {
     setActiveQuiz(prevQuiz => {
-      if (!prevQuiz || questionIndex < 0 || questionIndex >= prevQuiz.questions.length) {
-        return prevQuiz; // Invalid index or no active quiz
+      if (!prevQuiz || questionIndex < 0 || questionIndex >= prevQuiz.questions.length || prevQuiz.completedAt) {
+        return prevQuiz; 
       }
-      // Prevent navigation if quiz is completed
-      if (prevQuiz.completedAt) {
-        return prevQuiz;
-      }
-      return { ...prevQuiz, currentQuestionIndex: questionIndex };
+      const updatedQuiz = { ...prevQuiz, currentQuestionIndex: questionIndex };
+      setAllQuizzes(prevAll => prevAll.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
+      return updatedQuiz;
     });
-  }, []);
+  }, [setAllQuizzes]);
 
   const submitQuiz = useCallback(() => {
     setActiveQuiz(prevQuiz => {
-      if (!prevQuiz) return null;
+      if (!prevQuiz || prevQuiz.completedAt) return prevQuiz; // Avoid double submission
       let score = 0;
       const updatedQuestions = prevQuiz.questions.map(q => {
         const isCorrect = q.userAnswer === q.correctAnswer;
@@ -128,6 +142,8 @@ export function QuizProvider({ children }: { children: ReactNode }) {
         completedAt: Date.now(),
       };
       setAllQuizzes(prev => prev.map(q => q.id === completedQuiz.id ? completedQuiz : q));
+      // Remove from active quiz temp storage after submission
+      localStorage.removeItem('mindmash-active-quiz-temp');
       return completedQuiz; 
     });
   }, [setAllQuizzes]);
@@ -146,12 +162,14 @@ export function QuizProvider({ children }: { children: ReactNode }) {
 
   const clearActiveQuiz = useCallback(() => {
     setActiveQuiz(null);
+    localStorage.removeItem('mindmash-active-quiz-temp');
   }, []);
 
   const deleteQuiz = useCallback((quizId: string) => {
     setAllQuizzes(prev => prev.filter(q => q.id !== quizId));
     if (activeQuiz?.id === quizId) {
       setActiveQuiz(null);
+      localStorage.removeItem('mindmash-active-quiz-temp');
     }
   }, [setAllQuizzes, activeQuiz]);
 
@@ -159,29 +177,38 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     setAllQuizzes(prev => prev.filter(q => !q.completedAt));
     if (activeQuiz && activeQuiz.completedAt) {
       setActiveQuiz(null);
+      localStorage.removeItem('mindmash-active-quiz-temp');
     }
   }, [setAllQuizzes, activeQuiz]);
 
+  // Persist active quiz to local storage for resilience against refreshes, but not if completed
   useEffect(() => {
-    if (activeQuiz) {
-      const tempQuiz = { ...activeQuiz }; 
-      localStorage.setItem('mindmash-active-quiz-temp', JSON.stringify(tempQuiz));
-    } else {
+    if (activeQuiz && !activeQuiz.completedAt) {
+      localStorage.setItem('mindmash-active-quiz-temp', JSON.stringify(activeQuiz));
+    } else if (activeQuiz && activeQuiz.completedAt) {
+      // If quiz gets completed, remove it from the temp active storage
       localStorage.removeItem('mindmash-active-quiz-temp');
     }
   }, [activeQuiz]);
 
+  // Load active quiz from local storage on initial mount if not completed
   useEffect(() => {
     const savedActiveQuiz = localStorage.getItem('mindmash-active-quiz-temp');
     if (savedActiveQuiz) {
       try {
         const parsedQuiz = JSON.parse(savedActiveQuiz) as Quiz;
-        if (parsedQuiz.id && parsedQuiz.questions && typeof parsedQuiz.currentQuestionIndex === 'number') {
-          if (!parsedQuiz.completedAt || window.location.pathname.startsWith(`/results/${parsedQuiz.id}`) || window.location.pathname.startsWith(`/quiz/${parsedQuiz.id}`)) {
-            setActiveQuiz(parsedQuiz);
-          } else {
-             localStorage.removeItem('mindmash-active-quiz-temp'); 
-          }
+        // Only load if it's a valid quiz object and not completed
+        if (parsedQuiz.id && parsedQuiz.questions && typeof parsedQuiz.currentQuestionIndex === 'number' && !parsedQuiz.completedAt) {
+          // Check if we are on the quiz page for this quiz, otherwise don't load it as active
+           if (window.location.pathname.startsWith(`/quiz/${parsedQuiz.id}`)) {
+             setActiveQuiz(parsedQuiz);
+           } else {
+             // If not on the quiz page, perhaps clear it to avoid stale active quiz
+             localStorage.removeItem('mindmash-active-quiz-temp');
+           }
+        } else if (parsedQuiz.completedAt) {
+            // If it was completed but somehow still in temp storage, remove it
+            localStorage.removeItem('mindmash-active-quiz-temp');
         }
       } catch (e) {
         console.error("Failed to parse active quiz from localStorage", e);
