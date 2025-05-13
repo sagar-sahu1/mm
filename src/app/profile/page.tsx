@@ -40,7 +40,7 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 export default function UserProfilePage() {
-  const { currentUser, logout, loading: authLoading } = useAuth();
+  const { currentUser, logout, loading: authLoading, refreshUser } = useAuth(); // Added refreshUser
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -75,18 +75,17 @@ export default function UserProfilePage() {
             });
             setPhotoPreview(profileData.photoURL || currentUser.photoURL || null);
           } else {
-            // If no profile data in Firestore, set up with Auth data
             form.reset({
               displayName: currentUser.displayName || "",
-              bio: "", // User can fill this optionally
-              birthdate: undefined, // User can fill this optionally
+              bio: "", 
+              birthdate: undefined, 
               socialLinks: { github: "", linkedin: "", instagram: "" },
               photoFile: null,
             });
             setPhotoPreview(currentUser.photoURL || null);
-             toast({ // Changed toast message
+             toast({ 
               title: "Welcome to Your Profile",
-              description: "Consider updating your profile details to personalize your experience.",
+              description: "Feel free to update your profile details.", // Modified message
               variant: "default",
               duration: 5000,
             });
@@ -146,8 +145,7 @@ export default function UserProfilePage() {
       } else {
         await createUserProfileDocument(currentUser.uid, { 
           ...firestoreData, 
-          createdAt: Date.now(), 
-          updatedAt: Date.now() 
+          // createdAt and updatedAt are handled by createUserProfileDocument/updateUserProfile
         });
       }
 
@@ -158,18 +156,17 @@ export default function UserProfilePage() {
       if (newPhotoURL && newPhotoURL !== (currentUser.photoURL || photoPreview)) {
         authUpdates.photoURL = newPhotoURL;
       }
+
       if (Object.keys(authUpdates).length > 0 && currentUser) {
          await updateAuthProfile(currentUser, authUpdates);
+         await refreshUser(); // Refresh AuthContext's currentUser
       }
       
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
       
-      const wasIncomplete = !form.formState.defaultValues?.bio || !form.formState.defaultValues?.birthdate;
-      const isNowComplete = !!data.bio && !!data.birthdate;
-
-      if (wasIncomplete && isNowComplete) { 
-        router.push('/dashboard'); // Redirect to dashboard after initial profile completion (if they chose to complete it)
-      }
+      // Profile completion check removed for navigation, user can navigate freely.
+      // If they came from a redirect after login, they might go back or to dashboard.
+      // For simplicity, we can just let them stay on the profile page or provide a dashboard button.
 
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -371,3 +368,4 @@ export default function UserProfilePage() {
     </div>
   );
 }
+

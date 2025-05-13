@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { ReactNode, Dispatch, SetStateAction } from 'react';
@@ -26,7 +25,7 @@ interface AuthContextType {
   signup: (email: string, pass: string) => Promise<FirebaseUser | null>;
   loginWithGoogle: () => Promise<FirebaseUser | null>; 
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>; // Added to refresh user data
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const user = auth.currentUser;
     if (user) {
       await user.reload();
-      setCurrentUser(auth.currentUser);
+      setCurrentUser(auth.currentUser); // Update context with the reloaded user
     }
   };
 
@@ -94,41 +93,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       description: message,
       variant: 'destructive',
     });
+    setLoading(false); // Ensure loading is set to false on error
     return null;
   }
 
-  const navigateAfterAuth = async (user: FirebaseUser) => {
-    const userProfile = await getUserProfile(user.uid);
-    const isProfileConsideredComplete = userProfile?.displayName && userProfile.birthdate && userProfile.bio;
-
-    if (!isProfileConsideredComplete) {
-      toast({
-        title: "Complete Your Profile",
-        description: "Please complete your profile to continue.",
-        duration: 5000,
-      });
-      router.push(`/profile?redirect=${searchParams.get('redirect') || '/dashboard'}`);
-    } else {
-      const redirectUrl = searchParams.get('redirect') || '/dashboard';
-      router.push(redirectUrl);
-    }
+  const navigateAfterAuth = async (userToNavigate: FirebaseUser) => {
+    // This function doesn't check for profile completion anymore,
+    // as per user request to make profile completion optional.
+    const redirectUrl = searchParams.get('redirect') || '/dashboard';
+    router.push(redirectUrl);
   };
 
   const login = async (email: string, pass: string): Promise<FirebaseUser | null> => {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      setCurrentUser(userCredential.user);
-      await recordUserLogin(userCredential.user.uid); 
+      // onAuthStateChanged will handle setCurrentUser and recordUserLogin
       toast({ title: 'Logged In', description: 'Successfully logged in!' });
-      
       await navigateAfterAuth(userCredential.user);
+      setLoading(false);
       return userCredential.user;
     } catch (error) {
       return handleAuthError(error as AuthError, 'Failed to log in.');
-    } finally {
-      setLoading(false);
-    }
+    } 
+    // setLoading(false) is handled by handleAuthError or success path
   };
 
   const signup = async (email: string, pass: string): Promise<FirebaseUser | null> => {
@@ -137,27 +125,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       const user = userCredential.user;
       
-      // Update Firebase Auth user profile with displayName
-      await updateFirebaseUserProfile(user, { displayName: email.split('@')[0] });
+      const initialDisplayName = user.displayName || email.split('@')[0];
+      await updateFirebaseUserProfile(user, { displayName: initialDisplayName });
       
-      // Create Firestore profile document
       await createUserProfileDocument(user.uid, {
         email: user.email || undefined,
-        displayName: user.displayName || email.split('@')[0], // Use the (now updated) displayName from auth user
+        displayName: initialDisplayName,
+        photoURL: user.photoURL || undefined, // Persist photoURL if Google sign-up was first (though this is email signup)
       });
       
-      // Important: Reload user to get the updated displayName from Firebase Auth
-      await user.reload();
-      setCurrentUser(auth.currentUser); // Set current user from auth.currentUser after reload
-
-      toast({ title: 'Account Created', description: 'Welcome to MindMash! Please complete your profile.' });
+      await user.reload(); // Reload to get updated displayName in auth object
+      // onAuthStateChanged will handle setCurrentUser after reload & recordUserLogin
       
-      router.push(`/profile?redirect=${searchParams.get('redirect') || '/dashboard'}`); // Always redirect to profile after signup
-      return auth.currentUser; // Return the potentially updated user object
+      toast({ title: 'Account Created', description: 'Welcome to MindMash!' });
+      // Redirect to dashboard directly, profile completion is optional
+      const redirectUrl = searchParams.get('redirect') || '/dashboard';
+      router.push(redirectUrl);
+      setLoading(false);
+      return auth.currentUser; 
     } catch (error) {
       return handleAuthError(error as AuthError, 'Failed to sign up.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -167,38 +154,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      setCurrentUser(user); // Set context with user from Google sign-in
 
       let userProfile = await getUserProfile(user.uid);
       if (!userProfile) {
-        const profileDataToCreate: UserProfileFirestoreData = {
+        const profileDataToCreate: Partial<UserProfileFirestoreData> = {
             email: user.email || undefined,
             displayName: user.displayName || user.email?.split('@')[0],
             photoURL: user.photoURL || undefined,
-            // Initialize other fields for new profile
-            bio: '',
-            birthdate: '', // Ensure birthdate is empty to trigger profile completion
-            socialLinks: {},
+            // bio, birthdate, socialLinks will default in createUserProfileDocument
         };
         await createUserProfileDocument(user.uid, profileDataToCreate);
-        userProfile = await getUserProfile(user.uid); // Re-fetch to get the created profile
       } else {
-        // If profile exists, ensure photoURL from Google is updated if it's different or missing
+        const updates: Partial<UserProfileFirestoreData> = {};
+        if (user.displayName && user.displayName !== userProfile.displayName) {
+            updates.displayName = user.displayName;
+        }
         if (user.photoURL && user.photoURL !== userProfile.photoURL) {
-            await updateUserProfile(user.uid, { photoURL: user.photoURL });
+            updates.photoURL = user.photoURL;
+        }
+        if (Object.keys(updates).length > 0) {
+            await updateUserProfile(user.uid, updates);
         }
       }
       
-      await recordUserLogin(user.uid);
+      // onAuthStateChanged handles setCurrentUser & recordUserLogin
+      // Call refreshUser to ensure the context currentUser is updated from auth after any backend sync
+      await refreshUser(); 
 
       toast({ title: 'Logged In with Google', description: 'Successfully logged in!' });
       
-      await navigateAfterAuth(user); // Use user from Google result for navigation logic
-      return user;
+      if (auth.currentUser) {
+        await navigateAfterAuth(auth.currentUser);
+      } else {
+        // Fallback, though auth.currentUser should be set by now
+        await navigateAfterAuth(user);
+      }
+      setLoading(false);
+      return auth.currentUser || user;
     } catch (error) {
       return handleAuthError(error as AuthError, 'Failed to log in with Google.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -207,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       await signOut(auth);
-      setCurrentUser(null);
+      // onAuthStateChanged will set currentUser to null
       toast({ title: 'Logged Out', description: 'Successfully logged out.' });
       router.push('/login'); 
     } catch (error) {
@@ -271,3 +265,4 @@ export function useAuth() {
   }
   return context;
 }
+
