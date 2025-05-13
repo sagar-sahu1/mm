@@ -8,33 +8,33 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 96%; /* Light Gray #F5F5F5 */
-    --foreground: 240 10% 3.9%; /* Default dark text */
+    --background: 210 17% 98%; /* Light BG: #F9FAFB */
+    --foreground: 215 28% 17%; /* Text: #1F2937 */
 
     --card: 0 0% 100%; /* White cards */
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 215 28% 17%; /* Text: #1F2937 */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover-foreground: 215 28% 17%; /* Text: #1F2937 */
 
-    --primary: 207 82% 70%; /* Soothing Blue #64B5F6 */
-    --primary-foreground: 210 40% 98%; /* Light text for primary */
+    --primary: 243 75% 59%;    /* Primary: Indigo #4F46E5 */
+    --primary-foreground: 0 0% 100%; /* White for good contrast on Indigo */
 
-    --secondary: 0 0% 90%; /* Lighter gray for secondary elements */
-    --secondary-foreground: 240 5.9% 10%; /* Dark text for secondary */
+    --secondary: 210 17% 94%; /* A bit darker than light BG for secondary elements */
+    --secondary-foreground: 215 28% 17%; /* Dark text for secondary */
 
-    --muted: 0 0% 92%; /* Slightly adjusted muted gray */
-    --muted-foreground: 240 3.8% 46.1%; /* Muted text */
+    --muted: 210 17% 96%; /* Slightly darker than BG or similar */
+    --muted-foreground: 215 15% 45%; /* Muted text */
 
-    --accent: 174 63% 40%; /* Vibrant Teal #26A69A */
-    --accent-foreground: 0 0% 98%; /* Light text for accent */
+    --accent: 174 80% 43%;     /* Accent: Teal #14B8A6 */
+    --accent-foreground: 0 0% 100%; /* White for good contrast on Teal */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 89.8%; /* Border color */
-    --input: 0 0% 93%; /* Input background */
-    --ring: 207 82% 70%; /* Ring color (use primary) */
+    --border: 210 17% 90%;
+    --input: 210 17% 95%;
+    --ring: 243 75% 59%;    /* Primary for ring */
 
     --radius: 0.5rem;
 
@@ -46,33 +46,33 @@ body {
   }
 
   .dark {
-    --background: 222 47% 11%; /* Dark blueish background */
-    --foreground: 210 40% 98%; /* Light text */
+    --background: 217 49% 11%; /* Dark BG: #0F172A */
+    --foreground: 210 17% 95%; /* Light text for dark BG */
 
-    --card: 222 47% 15%; /* Slightly lighter card */
-    --card-foreground: 210 40% 98%;
+    --card: 217 49% 15%; /* Slightly lighter than dark BG for cards */
+    --card-foreground: 210 17% 95%; /* Light text for dark BG */
 
-    --popover: 222 47% 15%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 217 49% 15%;
+    --popover-foreground: 210 17% 95%;
 
-    --primary: 207 82% 65%; /* Slightly adjusted blue for dark */
-    --primary-foreground: 220 25% 10%; /* Darker text for primary on dark */
+    --primary: 243 75% 65%;    /* Lighter Indigo for dark mode */
+    --primary-foreground: 217 49% 11%; /* Dark text (Dark BG color) for contrast */
 
-    --secondary: 217 33% 17%; /* Darker secondary */
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 217 40% 20%; /* Darker secondary */
+    --secondary-foreground: 210 17% 95%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 217 40% 17%;
+    --muted-foreground: 210 17% 65%;
 
-    --accent: 174 63% 50%; /* Brighter teal for dark */
-    --accent-foreground: 220 25% 10%; /* Darker text for accent on dark */
+    --accent: 174 70% 50%;     /* Brighter Teal for dark mode */
+    --accent-foreground: 217 49% 11%; /* Dark text (Dark BG color) for contrast */
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 217 33% 22%;
-    --input: 217 33% 22%;
-    --ring: 207 82% 65%;
+    --border: 217 40% 25%;
+    --input: 217 40% 22%;
+    --ring: 243 75% 65%; /* Lighter primary for ring */
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
