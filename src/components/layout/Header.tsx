@@ -4,8 +4,27 @@
 import Link from "next/link";
 import { siteConfig } from "@/config/site";
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, History, UserCircle, LogIn, LogOut, UserPlus, LayoutDashboard, Link2, Lightbulb, Info, MessageSquare } from "lucide-react";
+import { 
+  BrainCircuit, 
+  UserCircle, 
+  LogIn, 
+  LogOut, 
+  UserPlus, 
+  LayoutDashboard, 
+  Lightbulb,
+  Settings,
+  ShieldCheck,
+  HelpCircle
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Header() {
   const { currentUser, logout, loading } = useAuth();
@@ -24,56 +43,39 @@ export function Header() {
               Create Quiz
             </Link>
           </Button>
-          {currentUser && (
-            <>
-              <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
-                <Link href="/dashboard" className="flex items-center">
-                  <LayoutDashboard className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
-                  Dashboard
-                </Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
-                <Link href="/history" className="flex items-center">
-                  <History className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
-                  History
-                </Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
-                <Link href="/challenge" className="flex items-center">
-                  <Link2 className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
-                  Challenge
-                </Link>
-              </Button>
-            </>
-          )}
-           <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
-            <Link href="/about" className="flex items-center">
-              <Info className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
-              About
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
-            <Link href="/contact" className="flex items-center">
-              <MessageSquare className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
-              Contact
-            </Link>
-          </Button>
-
+          
           {!loading && (
             <>
               {currentUser ? (
-                <>
-                  <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
-                    <Link href="/profile" className="flex items-center">
-                      <UserCircle className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
-                      Profile
-                    </Link>
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={logout} className="text-xs sm:text-sm">
-                    <LogOut className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
-                    Logout
-                  </Button>
-                </>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full">
+                      <UserCircle className="h-6 w-6" />
+                      <span className="sr-only">Open user menu</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="flex items-center w-full">
+                        <UserCircle className="mr-2 h-4 w-4" />
+                        Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard" className="flex items-center w-full">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout} className="cursor-pointer flex items-center w-full text-destructive focus:bg-destructive/10 focus:text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <>
                   <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
@@ -94,8 +96,7 @@ export function Header() {
           )}
            {loading && (
              <div className="flex items-center space-x-2">
-                <div className="h-5 w-5 animate-pulse rounded-full bg-muted-foreground/50"></div>
-                 <div className="h-5 w-10 animate-pulse rounded bg-muted-foreground/50"></div>
+                <div className="h-8 w-8 animate-pulse rounded-full bg-muted-foreground/50"></div>
             </div>
           )}
         </nav>
