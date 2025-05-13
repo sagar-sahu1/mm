@@ -5,10 +5,10 @@ import type { Quiz } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { CheckCircle, XCircle, Download, RotateCcw, Share2, Home } from "lucide-react";
+import { CheckCircle, XCircle, Download, RotateCcw, Share2, Home, Trophy } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
-import { QuizDisplay } from "./QuizDisplay"; // Re-use for showing questions
+import { QuizDisplay } from "./QuizDisplay";
 import { useToast } from "@/hooks/use-toast";
 
 interface ResultDisplayProps {
@@ -26,14 +26,16 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
       title: "PDF Download (Coming Soon!)",
       description: "This feature is under development. Please check back later.",
     });
-    // Placeholder for actual PDF generation logic (e.g., using jsPDF or react-to-print)
-    // window.print(); // Simplest form, but not ideal for styled PDF
   };
 
   const handleShareResults = () => {
-    const shareUrl = `${window.location.origin}/results/${quiz.id}`; // Simple share link to results page
-    // More robust would be to generate a unique shareable image or summary.
-    navigator.clipboard.writeText(`I scored ${scorePercentage}% on the ${quiz.topic} quiz on MindMash! Check out my results: ${shareUrl}`)
+    let shareText = `I scored ${scorePercentage}% on the ${quiz.topic} quiz on MindMash!`;
+    if (quiz.challengerName) {
+      shareText = `I scored ${scorePercentage}% on a ${quiz.topic} quiz challenged by ${quiz.challengerName} on MindMash!`;
+    }
+    const shareUrl = `${window.location.origin}/results/${quiz.id}`;
+    
+    navigator.clipboard.writeText(`${shareText} Check out the results: ${shareUrl}`)
       .then(() => {
         toast({ title: "Link Copied!", description: "Results link copied to clipboard." });
       })
@@ -51,6 +53,12 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
           <CardDescription className="text-xl text-muted-foreground">
             Topic: <span className="font-semibold text-primary">{quiz.topic}</span> | Difficulty: <span className="font-semibold text-primary capitalize">{quiz.difficulty}</span>
           </CardDescription>
+          {quiz.challengerName && (
+            <p className="text-md text-muted-foreground mt-2 flex items-center justify-center">
+              <Trophy className="h-5 w-5 mr-2 text-amber-500" />
+              You were challenged by <strong>{quiz.challengerName}</strong>!
+            </p>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
@@ -63,7 +71,7 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
           
           <div className="flex flex-wrap gap-4 justify-center pt-4">
             <Button asChild size="lg">
-              <Link href={`/create-quiz?topic=${encodeURIComponent(quiz.topic)}&difficulty=${quiz.difficulty}&questions=${quiz.questions.length}`}>
+              <Link href={`/create-quiz?topic=${encodeURIComponent(quiz.topic)}&difficulty=${quiz.difficulty}&questions=${quiz.questions.length}${quiz.challengerName ? `&challengerName=${encodeURIComponent(quiz.challengerName)}` : ''}`}>
                 <RotateCcw className="mr-2 h-5 w-5" /> Try Again
               </Link>
             </Button>
@@ -102,13 +110,12 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="p-2 md:p-0">
-                  {/* Re-using QuizDisplay in a "submitted" or "review" mode */}
                    <QuizDisplay
                       question={q}
                       questionNumber={index + 1}
                       totalQuestions={quiz.questions.length}
-                      onAnswer={() => {}} // No action on answer in review mode
-                      isSubmitted={true} // Indicate it's for review
+                      onAnswer={() => {}}
+                      isSubmitted={true}
                     />
                 </AccordionContent>
               </AccordionItem>

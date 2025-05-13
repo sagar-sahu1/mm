@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState, useRef } from "react";
 import { useQuiz } from "@/contexts/QuizContext";
-import { CheckCircle, XCircle, Volume2, Loader2, Info } from "lucide-react";
+import { CheckCircle, XCircle, Volume2, Loader2, Info, VolumeX } from "lucide-react"; // Added VolumeX
 import { useTheme } from "@/providers/ThemeProvider";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -40,14 +40,15 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
     // Cancel any ongoing speech if the question changes
     if (window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      utteranceRef.current = null;
     }
-    setIsSpeaking(false); // Reset speaking state
   }, [question.id, question.userAnswer]);
 
   // Cleanup speech synthesis on component unmount
   useEffect(() => {
     return () => {
-      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+      if (window.speechSynthesis && window.speechSynthesis.speaking && utteranceRef.current) {
         window.speechSynthesis.cancel();
       }
       setIsSpeaking(false);
@@ -79,33 +80,32 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
   const handleSpeak = () => {
     if (!accessibility.textToSpeech || !question.question) return;
 
-    if (isSpeaking) {
-      window.speechSynthesis.cancel(); // This should stop the current speech
+    if (isSpeaking && utteranceRef.current) {
+      window.speechSynthesis.cancel(); // Stop current speech
       setIsSpeaking(false);
-      utteranceRef.current = null;
+      utteranceRef.current = null; // Clear ref as it's cancelled
       return;
     }
-
+    
     if (window.speechSynthesis) {
-      // Ensure any previous speech is cancelled before starting new
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
+      // Cancel any previous speech just in case
+      window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(question.question);
-      utteranceRef.current = utterance; 
+      utteranceRef.current = utterance; // Store the current utterance
 
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => {
-        setIsSpeaking(false);
-        if (utteranceRef.current === utterance) { // Ensure it's the same utterance
-             utteranceRef.current = null;
+        // Only set isSpeaking to false if this specific utterance ended
+        if (utteranceRef.current === utterance) {
+          setIsSpeaking(false);
+          utteranceRef.current = null;
         }
       };
       utterance.onerror = (event) => {
-        setIsSpeaking(false);
         if (utteranceRef.current === utterance) {
-            utteranceRef.current = null;
+          setIsSpeaking(false);
+          utteranceRef.current = null;
         }
         console.error("Speech synthesis error:", event);
         let errorMessage = "Could not play audio for the question.";
@@ -140,7 +140,7 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                        <p>{isSpeaking ? "Stop speaking" : "Speak question"}</p>
+                        <p>{isSpeaking ? "Stop speaking" : (question.question ? "Speak question" : "No question to speak")}</p>
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>

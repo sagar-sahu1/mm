@@ -22,7 +22,9 @@ export interface Quiz {
   currentQuestionIndex: number; // To track progress
   timeLimitPerQuestion?: number; // Optional: seconds
   totalTimeTaken?: number; // Optional: seconds
+  challengerName?: string; // Optional: name of the user who challenged
 }
 
 // For storing quizzes in localStorage, we might simplify or store an array of Quizzes.
 // For QuizContext, we might store the activeQuiz: Quiz | null.
+

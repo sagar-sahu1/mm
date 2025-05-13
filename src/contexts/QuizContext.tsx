@@ -6,21 +6,21 @@ import { createContext, useContext, useState, useCallback, useEffect } from "rea
 import type { Quiz, QuizQuestion } from "@/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useRouter } from "next/navigation";
-import { v4 as uuidv4 } from 'uuid'; // Needs: npm install uuid && npm install @types/uuid
+import { v4 as uuidv4 } from 'uuid';
 
 interface QuizContextType {
   activeQuiz: Quiz | null;
   isLoadingQuiz: boolean;
-  startQuiz: (quizData: Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions'> & { questions: Omit<QuizQuestion, 'id'>[] }) => string;
+  startQuiz: (quizData: Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions'> & { questions: Omit<QuizQuestion, 'id'>[], challengerName?: string }) => string;
   answerQuestion: (questionId: string, answer: string) => void;
   nextQuestion: () => void;
   previousQuestion: () => void;
   submitQuiz: () => void;
   loadQuizFromStorage: (quizId: string) => Quiz | null;
   clearActiveQuiz: () => void;
-  allQuizzes: Quiz[]; // For potentially listing past quizzes
+  allQuizzes: Quiz[];
   deleteQuiz: (quizId: string) => void;
-  clearAllCompletedQuizzes: () => void; // New function
+  clearAllCompletedQuizzes: () => void;
 }
 
 const QuizContext = createContext<QuizContextType | undefined>(undefined);
@@ -29,9 +29,9 @@ export function QuizProvider({ children }: { children: ReactNode }) {
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
   const [allQuizzes, setAllQuizzes] = useLocalStorage<Quiz[]>("mindmash-quizzes", []);
-  const router = useRouter();
+  // const router = useRouter(); // Not directly used here for navigation after submitQuiz
 
-  const startQuiz = useCallback((quizData: Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions'> & { questions: Omit<QuizQuestion, 'id'>[] }): string => {
+  const startQuiz = useCallback((quizData: Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions'> & { questions: Omit<QuizQuestion, 'id'>[], challengerName?: string }): string => {
     setIsLoadingQuiz(true);
     const newQuizId = uuidv4();
     const enrichedQuestions = quizData.questions.map(q => ({...q, id: uuidv4()}));
@@ -41,6 +41,7 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       questions: enrichedQuestions,
       createdAt: Date.now(),
       currentQuestionIndex: 0,
+      challengerName: quizData.challengerName, // Include challengerName
     };
     setActiveQuiz(newQuiz);
     setAllQuizzes(prev => [newQuiz, ...prev.filter(q => q.id !== newQuizId)]);
@@ -92,10 +93,8 @@ export function QuizProvider({ children }: { children: ReactNode }) {
         completedAt: Date.now(),
       };
       setAllQuizzes(prev => prev.map(q => q.id === completedQuiz.id ? completedQuiz : q));
-      // router.push(`/results/${completedQuiz.id}`); // Navigation handled by QuizPage now
       return completedQuiz; 
     });
-     // router.push will be called from the page after submitQuiz updates state
   }, [setAllQuizzes]);
 
   const loadQuizFromStorage = useCallback((quizId: string): Quiz | null => {
@@ -124,11 +123,10 @@ export function QuizProvider({ children }: { children: ReactNode }) {
   const clearAllCompletedQuizzes = useCallback(() => {
     setAllQuizzes(prev => prev.filter(q => !q.completedAt));
     if (activeQuiz && activeQuiz.completedAt) {
-      setActiveQuiz(null); // Clear active quiz if it was a completed one that got cleared
+      setActiveQuiz(null);
     }
   }, [setAllQuizzes, activeQuiz]);
 
-  // Persist activeQuiz to localStorage to handle page refresh during a quiz
   useEffect(() => {
     if (activeQuiz) {
       const tempQuiz = { ...activeQuiz }; 
@@ -138,7 +136,6 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     }
   }, [activeQuiz]);
 
-  // Rehydrate activeQuiz from localStorage on initial load if it exists
   useEffect(() => {
     const savedActiveQuiz = localStorage.getItem('mindmash-active-quiz-temp');
     if (savedActiveQuiz) {

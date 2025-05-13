@@ -1,7 +1,8 @@
 
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
-import { getAnalytics, type Analytics, isSupported } from "firebase/analytics"; // Added Analytics import
+// Import Analytics types and functions but defer initialization
+import { getAnalytics, type Analytics, isSupported as isAnalyticsSupported } from "firebase/analytics";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -18,9 +19,7 @@ const firebaseConfig = {
 
 let app: FirebaseApp;
 let auth: Auth;
-let analytics: Analytics | null = null; // Initialize as null
-// let db: Firestore; // Uncomment if you need Firestore
-// let storage: FirebaseStorage; // Uncomment if you need Storage
+let analyticsInstance: Analytics | null = null; // Store analytics instance
 
 // Ensure all required Firebase config keys are present before initializing
 const requiredConfigKeys: (keyof typeof firebaseConfig)[] = [
@@ -34,7 +33,7 @@ const missingKeys = requiredConfigKeys.filter(key => !firebaseConfig[key]);
 
 if (missingKeys.length > 0) {
   console.error(`Firebase config is missing required keys from environment variables: ${missingKeys.join(', ')}.`);
-  console.error('Please ensure all NEXT_PUBLIC_FIREBASE_ prefixed environment variables are set correctly in your .env.local file.');
+  console.error('Please ensure all NEXT_PUBLIC_FIREBASE_ prefixed environment variables are set correctly in your .env or .env.local file.');
   // Potentially throw an error or handle this state appropriately for your application
 }
 
@@ -48,7 +47,7 @@ if (getApps().length === 0) {
     }
   } catch (e) {
     console.error("Error initializing Firebase app:", e);
-    throw e;
+    throw e; // Re-throw if app initialization fails
   }
 } else {
   app = getApps()[0];
@@ -56,25 +55,31 @@ if (getApps().length === 0) {
 
 try {
   auth = getAuth(app);
-  // Initialize Analytics only on the client side and if supported
-  if (typeof window !== 'undefined') {
-    isSupported().then((supported) => {
+} catch (e) {
+  console.error("Error initializing Firebase Auth:", e);
+  // Depending on app's requirements, might re-throw or handle
+}
+
+// Function to initialize analytics on the client side
+export function initializeClientAnalytics() {
+  if (typeof window !== 'undefined' && !analyticsInstance) { // Check if running on client and not already initialized
+    isAnalyticsSupported().then(supported => {
       if (supported) {
-        analytics = getAnalytics(app);
+        analyticsInstance = getAnalytics(app);
+        console.log("Firebase Analytics initialized.");
       } else {
         console.log("Firebase Analytics is not supported in this environment.");
       }
     }).catch(e => {
-        console.error("Error checking Firebase Analytics support:", e);
+      console.error("Error initializing Firebase Analytics:", e);
     });
   }
-} catch (e) {
-  console.error("Error initializing Firebase services (Auth/Analytics):", e);
-  // We don't re-throw here as auth might be initialized successfully
-  // and analytics is optional.
 }
 
+// Export auth and app as before
+export { app, auth };
+// Export analytics instance (will be null on server, initialized on client after calling initializeClientAnalytics)
+export { analyticsInstance as analytics };
 // db = getFirestore(app); // Uncomment if you need Firestore
 // storage = getStorage(app); // Uncomment if you need Storage
-
-export { app, auth, analytics /*, db, storage */ }; // Export db and storage if you uncomment them
+// export { /* db, storage */ }; // Export db and storage if you uncomment them
