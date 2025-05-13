@@ -8,18 +8,16 @@ import * as z from "zod";
 import { format, parseISO } from 'date-fns';
 
 import { useAuth } from "@/contexts/AuthContext";
-// useTheme removed as current app settings section is removed
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-// Label removed as it's implicitly used by FormLabel
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserCircle, LogOut, Loader2, CalendarIcon, UploadCloud, Github, Linkedin, Instagram, Save } from "lucide-react"; // Added Save icon
+import { UserCircle, LogOut, Loader2, CalendarIcon, UploadCloud, Github, Linkedin, Instagram, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getUserProfile, updateUserProfile, createUserProfileDocument } from "@/lib/firestoreUtils";
 import { getAppStorage } from "@/lib/firebase";
@@ -78,6 +76,7 @@ export default function UserProfilePage() {
             });
             setPhotoPreview(profileData.photoURL || currentUser.photoURL || null);
           } else {
+            // If no profile data in Firestore, set up with Auth data and prompt to complete
             form.reset({
               displayName: currentUser.displayName || "",
               bio: "",
@@ -86,6 +85,13 @@ export default function UserProfilePage() {
               photoFile: null,
             });
             setPhotoPreview(currentUser.photoURL || null);
+            // Optionally, prompt to complete profile if it's their first time or data is missing
+             toast({
+              title: "Complete Your Profile",
+              description: "Please fill in your profile details to continue.",
+              variant: "default",
+              duration: 7000,
+            });
           }
         })
         .catch(error => {
@@ -159,6 +165,11 @@ export default function UserProfilePage() {
       }
       
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
+      // Check if profile was incomplete before and now is complete
+      if (form.formState.isDirty) { // A simple check, could be more robust
+        router.push('/'); // Redirect to home or dashboard after profile completion
+      }
+
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({ title: "Update Failed", description: (error as Error).message || "Could not update profile.", variant: "destructive" });
@@ -342,21 +353,21 @@ export default function UserProfilePage() {
                 </CardContent>
               </Card>
               
-              <Button type="submit" size="default" className="w-full" disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save
-              </Button>
+              <div className="flex justify-between items-center space-x-4 pt-4">
+                <Button type="submit" size="sm" className="flex-1 md:flex-none" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save Profile
+                </Button>
+                <Button onClick={logout} variant="destructive" size="sm" className="flex-1 md:flex-none">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log Out
+                </Button>
+              </div>
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="p-6 md:p-8 flex-col space-y-4">
-          {/* Removed Current App Settings Card */}
-          <Button onClick={logout} variant="destructive" className="w-full">
-            <LogOut className="mr-2 h-4 w-4" />
-            Log Out
-          </Button>
-        </CardFooter>
       </Card>
     </div>
   );
 }
+
