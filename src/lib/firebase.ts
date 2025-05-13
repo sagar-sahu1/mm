@@ -2,6 +2,7 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getStorage, type FirebaseStorage } from 'firebase/storage'; // Import Storage
 // Import Analytics types and functions but defer initialization
 import { getAnalytics, type Analytics, isSupported as isAnalyticsSupported } from "firebase/analytics";
 
@@ -21,6 +22,7 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
+let storage: FirebaseStorage; // Declare storage
 let analyticsInstance: Analytics | null = null; // Store analytics instance
 
 // Ensure all required Firebase config keys are present before initializing
@@ -29,6 +31,7 @@ const requiredConfigKeys: (keyof typeof firebaseConfig)[] = [
   'authDomain',
   'projectId',
   'appId',
+  'storageBucket', // Add storageBucket as required for Storage initialization
 ];
 
 const missingKeys = requiredConfigKeys.filter(key => !firebaseConfig[key]);
@@ -58,6 +61,7 @@ if (getApps().length === 0) {
 try {
   auth = getAuth(app);
   db = getFirestore(app);
+  storage = getStorage(app); // Initialize storage
 } catch (e) {
   console.error("Error initializing Firebase services:", e);
   // Depending on app's requirements, might re-throw or handle
@@ -81,11 +85,7 @@ export function initializeClientAnalytics() {
 
 const getDb = (): Firestore => {
   if (!db) {
-    // This case should ideally not happen if initialization in the module's top level is successful.
-    // However, as a fallback, especially if this function could be called before full initialization
-    // in some very specific scenarios (though unlikely with Next.js module loading).
     if (getApps().length === 0) {
-       // Re-run initialization if no apps are found, though this is defensive.
        if (requiredConfigKeys.every(key => !!firebaseConfig[key])) {
         app = initializeApp(firebaseConfig);
        } else {
@@ -99,11 +99,24 @@ const getDb = (): Firestore => {
   return db;
 }
 
+const getAppStorage = (): FirebaseStorage => {
+  if (!storage) {
+    if (getApps().length === 0) {
+       if (requiredConfigKeys.every(key => !!firebaseConfig[key])) {
+        app = initializeApp(firebaseConfig);
+       } else {
+         throw new Error("Firebase configuration is incomplete. Cannot initialize app before getting Storage instance.");
+       }
+    } else {
+        app = getApps()[0];
+    }
+    storage = getStorage(app);
+  }
+  return storage;
+}
+
 
 // Export auth and app as before
-export { app, auth, db, getDb };
+export { app, auth, db, getDb, storage, getAppStorage }; // Export storage and its getter
 // Export analytics instance (will be null on server, initialized on client after calling initializeClientAnalytics)
 export { analyticsInstance as analytics };
-// storage = getStorage(app); // Uncomment if you need Storage
-// export { /* storage */ }; // Export storage if you uncomment them
-

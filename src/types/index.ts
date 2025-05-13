@@ -33,3 +33,34 @@ export interface Quiz {
 // For QuizContext, we might store the activeQuiz: Quiz | null.
 
 
+export interface SocialLinks {
+  github?: string;
+  linkedin?: string;
+  instagram?: string;
+}
+
+export interface UserProfile {
+  uid: string; // From Firebase Auth
+  email: string | null; // From Firebase Auth
+  displayName?: string | null; // From Firebase Auth & Firestore
+  photoURL?: string | null; // From Firebase Auth & Firestore
+  bio?: string; // Firestore
+  birthdate?: string; // ISO string "YYYY-MM-DD", Firestore
+  socialLinks?: SocialLinks; // Firestore
+  // Potentially other app-specific fields from Firestore
+  createdAt?: number; // Firestore, when profile doc was created
+  updatedAt?: number; // Firestore, when profile doc was last updated
+}
+
+// Data structure for Firestore 'users' collection documents
+// This mirrors UserProfile but omits uid and email as they are often doc ID / auth derived
+export interface UserProfileFirestoreData {
+  displayName?: string;
+  photoURL?: string;
+  bio?: string;
+  birthdate?: string; // ISO string "YYYY-MM-DD"
+  socialLinks?: SocialLinks;
+  email?: string; // Store email for easier querying/display if needed, though auth is source of truth
+  createdAt?: number; 
+  updatedAt?: number;
+}
