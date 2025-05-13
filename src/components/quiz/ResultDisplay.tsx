@@ -5,11 +5,12 @@ import type { Quiz } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { CheckCircle, XCircle, Download, RotateCcw, Share2, Home, Trophy } from "lucide-react";
+import { CheckCircle, XCircle, Download, RotateCcw, Share2, Home, Trophy, LayoutDashboard } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
 import { QuizDisplay } from "./QuizDisplay";
 import { useToast } from "@/hooks/use-toast";
+import jsPDF from "jspdf";
 
 interface ResultDisplayProps {
   quiz: Quiz;
@@ -22,10 +23,82 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
     : 0;
 
   const handleDownloadPdf = () => {
-    toast({
-      title: "PDF Download (Coming Soon!)",
-      description: "This feature is under development. Please check back later.",
-    });
+    try {
+      const doc = new jsPDF();
+      let yPosition = 20;
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 20;
+      const lineHeight = 7; // Approximate line height
+
+      // Add title
+      doc.setFontSize(18);
+      doc.text(`Quiz Results: ${quiz.topic}`, margin, yPosition);
+      yPosition += lineHeight * 2;
+
+      // Add subtopic and difficulty if available
+      let details = `Difficulty: ${quiz.difficulty}`;
+      if (quiz.subtopic) details += ` | Subtopic: ${quiz.subtopic}`;
+      doc.setFontSize(12);
+      doc.text(details, margin, yPosition);
+      yPosition += lineHeight;
+
+      if (quiz.challengerName) {
+        doc.text(`Challenged by: ${quiz.challengerName}`, margin, yPosition);
+        yPosition += lineHeight;
+      }
+
+      // Add score
+      doc.setFontSize(14);
+      doc.text(`Score: ${quiz.score}/${quiz.questions.length} (${scorePercentage}%)`, margin, yPosition);
+      yPosition += lineHeight * 2;
+
+      // Add questions and answers
+      doc.setFontSize(12);
+      quiz.questions.forEach((q, index) => {
+        if (yPosition > pageHeight - margin * 2) { // Check for page break
+          doc.addPage();
+          yPosition = margin;
+        }
+
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0); // Reset text color
+        
+        const questionText = `Q${index + 1}: ${q.question}`;
+        const questionLines = doc.splitTextToSize(questionText, doc.internal.pageSize.width - margin * 2);
+        doc.text(questionLines, margin, yPosition);
+        yPosition += questionLines.length * lineHeight;
+
+        const userAnswerText = `Your Answer: ${q.userAnswer || "Not Answered"}`;
+        doc.setTextColor(q.isCorrect ? 0 : (q.userAnswer ? 255 : 100), q.isCorrect ? 150 : 0, q.isCorrect ? 0 : 0); // Green for correct, Red for incorrect user answer, Gray for unanswered
+        const userAnswerLines = doc.splitTextToSize(userAnswerText, doc.internal.pageSize.width - margin * 2);
+        doc.text(userAnswerLines, margin + 5, yPosition);
+        yPosition += userAnswerLines.length * lineHeight;
+
+        if (!q.isCorrect) {
+          doc.setTextColor(0, 150, 0); // Green for correct answer
+          const correctAnswerText = `Correct Answer: ${q.correctAnswer}`;
+          const correctAnswerLines = doc.splitTextToSize(correctAnswerText, doc.internal.pageSize.width - margin * 2);
+          doc.text(correctAnswerLines, margin + 5, yPosition);
+          yPosition += correctAnswerLines.length * lineHeight;
+        }
+        
+        doc.setTextColor(0,0,0); // Reset to black
+        yPosition += lineHeight; // Extra space between questions
+      });
+
+      doc.save(`MindMash_Quiz_Results_${quiz.topic.replace(/\s+/g, '_')}.pdf`);
+      toast({
+        title: "PDF Downloaded",
+        description: "Your quiz results PDF has been generated.",
+      });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "PDF Generation Failed",
+        description: error instanceof Error ? error.message : "Could not generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleShareResults = () => {
@@ -71,7 +144,7 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
           </div>
           <Progress value={scorePercentage} aria-label={`Score: ${scorePercentage}%`} className="h-4 rounded-full" />
           
-          <div className="flex flex-wrap gap-4 justify-center pt-4">
+          <div className="flex flex-wrap gap-3 justify-center pt-4">
              <Button asChild size="lg">
               <Link href={`/create-quiz?topic=${encodeURIComponent(quiz.topic)}&difficulty=${quiz.difficulty}&questions=${quiz.questions.length}${quiz.subtopic ? `&subtopic=${encodeURIComponent(quiz.subtopic)}` : ''}${quiz.timeLimitMinutes ? `&timeLimit=${quiz.timeLimitMinutes}` : ''}${quiz.challengerName ? `&challengerName=${encodeURIComponent(quiz.challengerName)}` : ''}`}>
                 <RotateCcw className="mr-2 h-5 w-5" /> Try Again
@@ -82,6 +155,11 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
             </Button>
             <Button onClick={handleDownloadPdf} variant="outline" size="lg">
               <Download className="mr-2 h-5 w-5" /> Download PDF
+            </Button>
+            <Button asChild variant="secondary" size="lg">
+              <Link href="/dashboard">
+                <LayoutDashboard className="mr-2 h-5 w-5" /> Dashboard
+              </Link>
             </Button>
             <Button asChild variant="secondary" size="lg">
               <Link href="/">

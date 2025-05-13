@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation"; // useRouter removed as it's not used after changes
 import { useQuiz } from "@/contexts/QuizContext";
 import { ResultDisplay } from "@/components/quiz/ResultDisplay";
 import { Loader2, AlertTriangle, Home } from "lucide-react";
@@ -14,26 +14,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 export default function ResultsPage() {
   const params = useParams();
   const quizId = params.quizId as string;
-  const { activeQuiz, isLoadingQuiz, loadQuizFromStorage, clearActiveQuiz, allQuizzes } = useQuiz();
+  const { activeQuiz, isLoadingQuiz, loadQuizFromStorage, allQuizzes } = useQuiz(); // clearActiveQuiz removed, router removed
   const [isClient, setIsClient] = useState(false);
-  const router = useRouter();
+  // const router = useRouter(); // Removed, as direct navigation back to quiz isn't strictly needed here if completedAt is source of truth
 
   useEffect(() => {
     setIsClient(true);
     if (quizId) {
       const loadedQuiz = loadQuizFromStorage(quizId);
+      // Optionally, if a quiz is loaded but NOT completed, you might redirect.
+      // However, `ResultDisplay` will likely not render correctly anyway if `completedAt` is missing.
+      // This check is more for ensuring `activeQuiz` is set if this page is directly navigated to.
       if (loadedQuiz && !loadedQuiz.completedAt) {
-        // If quiz is found but not completed, redirect back to quiz page
-        router.replace(`/quiz/${quizId}`);
+        // console.warn(`Quiz ${quizId} loaded on results page but not completed. Consider redirecting or handling.`);
+        // router.replace(`/quiz/${quizId}`); // This line was previously here, could be reinstated if strict redirection is desired
       }
     }
-    // Clean up active quiz when leaving results page unless it's the quiz we are viewing
-    return () => {
-      if (activeQuiz && activeQuiz.id !== quizId) {
-         // clearActiveQuiz(); // May not be needed if activeQuiz is rehydrated correctly.
-      }
-    }
-  }, [quizId, loadQuizFromStorage, activeQuiz, router]);
+  }, [quizId, loadQuizFromStorage]); // activeQuiz removed from dependencies as it might cause loops if it changes due to loadQuizFromStorage
 
 
   if (!isClient || isLoadingQuiz) {
@@ -45,10 +42,9 @@ export default function ResultsPage() {
     );
   }
   
-  // Use the activeQuiz from context if it matches, otherwise it should have been loaded by loadQuizFromStorage
-  const quizToDisplay = (activeQuiz && activeQuiz.id === quizId && activeQuiz.completedAt) ? activeQuiz : allQuizzes.find(q => q.id === quizId && q.completedAt);
-  // This line was problematic: const { allQuizzes } = useQuiz(); // Cannot call hooks conditionally or inside if.
-  // Instead, rely on activeQuiz or ensure loadQuizFromStorage correctly sets it.
+  const quizToDisplay = (activeQuiz && activeQuiz.id === quizId && activeQuiz.completedAt) 
+    ? activeQuiz 
+    : allQuizzes.find(q => q.id === quizId && q.completedAt);
 
   if (!quizToDisplay) {
      return (
@@ -75,9 +71,4 @@ export default function ResultsPage() {
   return <ResultDisplay quiz={quizToDisplay} />;
 }
 
-// Removed metadata export as it's not allowed in client components
-// export const metadata = {
-//   title: "Quiz Results",
-//   description: "View your performance on the completed quiz.",
-// };
 
