@@ -15,6 +15,7 @@ interface QuizContextType {
   answerQuestion: (questionId: string, answer: string) => void;
   nextQuestion: () => void;
   previousQuestion: () => void;
+  navigateToQuestion: (questionIndex: number) => void; // Added for direct navigation
   submitQuiz: () => void;
   loadQuizFromStorage: (quizId: string) => Quiz | null;
   clearActiveQuiz: () => void;
@@ -74,6 +75,19 @@ export function QuizProvider({ children }: { children: ReactNode }) {
         return prevQuiz;
       }
       return { ...prevQuiz, currentQuestionIndex: prevQuiz.currentQuestionIndex - 1 };
+    });
+  }, []);
+
+  const navigateToQuestion = useCallback((questionIndex: number) => {
+    setActiveQuiz(prevQuiz => {
+      if (!prevQuiz || questionIndex < 0 || questionIndex >= prevQuiz.questions.length) {
+        return prevQuiz; // Invalid index or no active quiz
+      }
+      // Prevent navigation if quiz is completed
+      if (prevQuiz.completedAt) {
+        return prevQuiz;
+      }
+      return { ...prevQuiz, currentQuestionIndex: questionIndex };
     });
   }, []);
 
@@ -157,7 +171,7 @@ export function QuizProvider({ children }: { children: ReactNode }) {
 
 
   return (
-    <QuizContext.Provider value={{ activeQuiz, isLoadingQuiz, startQuiz, answerQuestion, nextQuestion, previousQuestion, submitQuiz, loadQuizFromStorage, clearActiveQuiz, allQuizzes, deleteQuiz, clearAllCompletedQuizzes }}>
+    <QuizContext.Provider value={{ activeQuiz, isLoadingQuiz, startQuiz, answerQuestion, nextQuestion, previousQuestion, navigateToQuestion, submitQuiz, loadQuizFromStorage, clearActiveQuiz, allQuizzes, deleteQuiz, clearAllCompletedQuizzes }}>
       {children}
     </QuizContext.Provider>
   );
@@ -170,3 +184,4 @@ export function useQuiz() {
   }
   return context;
 }
+

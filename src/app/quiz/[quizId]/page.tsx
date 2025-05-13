@@ -19,7 +19,7 @@ export default function QuizPage() {
   const params = useParams();
   const router = useRouter();
   const quizId = params.quizId as string;
-  const { activeQuiz, isLoadingQuiz, loadQuizFromStorage, answerQuestion, nextQuestion, previousQuestion, submitQuiz, clearActiveQuiz } = useQuiz();
+  const { activeQuiz, isLoadingQuiz, loadQuizFromStorage, answerQuestion, nextQuestion, previousQuestion, navigateToQuestion, submitQuiz, clearActiveQuiz } = useQuiz();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -134,12 +134,7 @@ export default function QuizPage() {
       <QuizProgressBar
         questions={activeQuiz.questions}
         currentQuestionIndex={activeQuiz.currentQuestionIndex}
-        onNavigate={(index) => {
-          // For now, clicking progress bar won't navigate to avoid complex state sync issues without proper context methods.
-          console.log("Navigate to question (visual only for now):", index + 1);
-          // To implement navigation, a context function like `setCurrentQuestionIndex(index)` would be needed.
-          // setActiveQuiz(prev => prev ? {...prev, currentQuestionIndex: index} : null); // This would update local state, but might conflict with context's next/prev
-        }}
+        onNavigate={navigateToQuestion} // Use context function for navigation
       />
 
       <div className="flex justify-between items-center pt-4">
@@ -190,3 +185,4 @@ export default function QuizPage() {
 //   title: "Take Quiz",
 //   description: "Engage in an interactive quiz on your chosen topic.",
 // };
+
