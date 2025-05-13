@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { QuizQuestion } from "@/types";
@@ -8,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState, useRef } from "react";
 import { useQuiz } from "@/contexts/QuizContext";
-import { CheckCircle, XCircle, Volume2, Loader2, Info, VolumeX } from "lucide-react"; // Added VolumeX
+import { CheckCircle, XCircle, Volume2, Loader2, Info, VolumeX } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -23,12 +22,12 @@ interface QuizDisplayProps {
   questionNumber: number;
   totalQuestions: number;
   onAnswer: (answer: string) => void;
-  isSubmitted: boolean; // To show correct/incorrect answers after submission
+  isSubmitted: boolean; // To show correct/incorrect answers after submission or if quiz is completed
 }
 
 export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer, isSubmitted }: QuizDisplayProps) {
   const [selectedValue, setSelectedValue] = useState<string | undefined>(question.userAnswer);
-  const { activeQuiz } = useQuiz();
+  const { activeQuiz } = useQuiz(); // Get activeQuiz for completion status
   const { accessibility } = useTheme();
   const { toast } = useToast();
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -37,7 +36,6 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
 
   useEffect(() => {
     setSelectedValue(question.userAnswer);
-    // Cancel any ongoing speech if the question changes
     if (window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
@@ -45,7 +43,6 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
     }
   }, [question.id, question.userAnswer]);
 
-  // Cleanup speech synthesis on component unmount
   useEffect(() => {
     return () => {
       if (window.speechSynthesis && window.speechSynthesis.speaking && utteranceRef.current) {
@@ -58,20 +55,21 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
 
 
   const handleValueChange = (value: string) => {
+    // Prevent changing answer if quiz is submitted/completed
     if (isSubmitted || activeQuiz?.completedAt) return; 
     setSelectedValue(value);
     onAnswer(value);
   };
 
   const getOptionStyle = (option: string) => {
-    if (!isSubmitted && !activeQuiz?.completedAt) return "";
+    if (!isSubmitted) return ""; // No special styling if quiz is ongoing and not yet submitted for review
     if (option === question.correctAnswer) return "text-green-600 dark:text-green-400 font-semibold";
     if (option === question.userAnswer && option !== question.correctAnswer) return "text-red-600 dark:text-red-400 line-through";
     return "text-muted-foreground";
   };
 
   const getOptionIcon = (option: string) => {
-    if (!isSubmitted && !activeQuiz?.completedAt) return null;
+    if (!isSubmitted) return null;
     if (option === question.correctAnswer) return <CheckCircle className="h-5 w-5 text-green-500 ml-2" />;
     if (option === question.userAnswer && option !== question.correctAnswer) return <XCircle className="h-5 w-5 text-red-500 ml-2" />;
     return null;
@@ -81,22 +79,20 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
     if (!accessibility.textToSpeech || !question.question) return;
 
     if (isSpeaking && utteranceRef.current) {
-      window.speechSynthesis.cancel(); // Stop current speech
+      window.speechSynthesis.cancel();
       setIsSpeaking(false);
-      utteranceRef.current = null; // Clear ref as it's cancelled
+      utteranceRef.current = null;
       return;
     }
     
     if (window.speechSynthesis) {
-      // Cancel any previous speech just in case
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(question.question);
-      utteranceRef.current = utterance; // Store the current utterance
+      utteranceRef.current = utterance;
 
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => {
-        // Only set isSpeaking to false if this specific utterance ended
         if (utteranceRef.current === utterance) {
           setIsSpeaking(false);
           utteranceRef.current = null;
@@ -109,8 +105,7 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
         }
         
         const errorCode = event.error || "unknown_error";
-        // Log more detailed error information to the console for developers
-        console.warn( // Changed from console.error
+        console.warn(
           `Speech synthesis error. Code: ${errorCode}. Utterance: "${event.utterance?.text?.substring(0,50)}..."`,
           "Full event:", event
         );
@@ -136,27 +131,31 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
   return (
     <Card className="w-full shadow-lg">
       <CardHeader className="relative">
-        <div className="flex justify-between items-start">
-            <div>
+        <div className="flex justify-between items-center">
+            <div className="flex-grow mr-2"> {/* Added mr-2 for spacing from icons */}
                  <CardDescription className="text-base">
                     Question {questionNumber} of {totalQuestions}
                 </CardDescription>
-                <CardTitle className="text-2xl leading-relaxed mt-1 pr-12">{question.question}</CardTitle>
+                <CardTitle className="text-2xl leading-relaxed mt-1">{question.question}</CardTitle>
             </div>
-            {accessibility.textToSpeech && (
-                 <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={handleSpeak} aria-label={isSpeaking ? "Stop speaking" : "Speak question"} className="ml-2 shrink-0">
-                                {isSpeaking ? <Loader2 className="h-5 w-5 animate-spin" /> : (question.question ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />) }
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                        <p>{isSpeaking ? "Stop speaking" : (question.question ? "Speak question" : "No question to speak")}</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            )}
+            {/* Container for TTS and potentially other icons/elements like a compact timer if moved here */}
+            <div className="flex items-center space-x-1 shrink-0">
+                {accessibility.textToSpeech && (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={handleSpeak} aria-label={isSpeaking ? "Stop speaking" : "Speak question"} className="ml-auto shrink-0"> {/* ml-auto if it's the only child, or adjust */}
+                                    {isSpeaking ? <Loader2 className="h-5 w-5 animate-spin" /> : (question.question ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />) }
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                            <p>{isSpeaking ? "Stop speaking" : (question.question ? "Speak question" : "No question to speak")}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
+                {/* If a compact timer were to be placed here, it would go in this flex container */}
+            </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -164,16 +163,18 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
           value={selectedValue}
           onValueChange={handleValueChange}
           className="space-y-3"
-          disabled={isSubmitted || activeQuiz?.completedAt !== undefined}
+          // Disable radio group if the quiz is submitted (i.e., completed and in review mode)
+          disabled={isSubmitted}
         >
           {question.options.map((option, index) => (
             <Label
               key={index}
               htmlFor={`${question.id}-option-${index}`}
-              className={`flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-accent/10 transition-colors
-                ${selectedValue === option && !isSubmitted && !activeQuiz?.completedAt ? 'ring-2 ring-primary border-primary bg-primary/5' : ''}
-                ${(isSubmitted || activeQuiz?.completedAt) && option === question.correctAnswer ? 'border-green-500 bg-green-500/10' : ''}
-                ${(isSubmitted || activeQuiz?.completedAt) && option === question.userAnswer && option !== question.correctAnswer ? 'border-red-500 bg-red-500/10' : ''}
+              className={`flex items-center space-x-3 p-4 border rounded-lg transition-colors
+                ${!isSubmitted && selectedValue === option ? 'ring-2 ring-primary border-primary bg-primary/5 cursor-pointer hover:bg-accent/10' : 'cursor-pointer hover:bg-accent/10'}
+                ${isSubmitted && option === question.correctAnswer ? 'border-green-500 bg-green-500/10' : ''}
+                ${isSubmitted && option === question.userAnswer && option !== question.correctAnswer ? 'border-red-500 bg-red-500/10' : ''}
+                ${isSubmitted ? 'cursor-default' : ''} 
               `}
             >
               <RadioGroupItem value={option} id={`${question.id}-option-${index}`} />
@@ -182,7 +183,8 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
             </Label>
           ))}
         </RadioGroup>
-        {(isSubmitted || activeQuiz?.completedAt) && question.userAnswer !== question.correctAnswer && (
+        {/* Show correct answer info only if submitted and user's answer was incorrect */}
+        {isSubmitted && question.userAnswer !== question.correctAnswer && (
           <Card className="mt-4 border-blue-500 bg-blue-500/10">
             <CardContent className="p-4">
                 <div className="flex items-start">
@@ -199,4 +201,3 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
     </Card>
   );
 }
-

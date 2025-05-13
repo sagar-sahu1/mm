@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuiz } from "@/contexts/QuizContext";
 import { QuizDisplay } from "@/components/quiz/QuizDisplay";
 import { QuizProgressBar } from "@/components/quiz/QuizProgressBar";
-// import { QuizTimer } from "@/components/quiz/QuizTimer"; // Basic timer added, can be enhanced
+import { QuizTimer } from "@/components/quiz/QuizTimer";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CheckSquare, Loader2, AlertTriangle, Home } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,17 +18,13 @@ export default function QuizPage() {
   const params = useParams();
   const router = useRouter();
   const quizId = params.quizId as string;
-  const { activeQuiz, isLoadingQuiz, loadQuizFromStorage, answerQuestion, nextQuestion, previousQuestion, navigateToQuestion, submitQuiz, clearActiveQuiz } = useQuiz();
+  const { activeQuiz, isLoadingQuiz, loadQuizFromStorage, answerQuestion, nextQuestion, previousQuestion, navigateToQuestion, submitQuiz } = useQuiz();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
     if (quizId) {
       loadQuizFromStorage(quizId);
-    }
-    return () => {
-      // Optional: Decide if active quiz should be cleared when navigating away before completion
-      // clearActiveQuiz(); // This might be too aggressive if user just refreshes
     }
   }, [quizId, loadQuizFromStorage]);
 
@@ -40,8 +35,7 @@ export default function QuizPage() {
   };
 
   const handleSubmitQuiz = () => {
-    submitQuiz(); // Context now handles setting the completed quiz state
-    // useEffect below will handle navigation once activeQuiz reflects completion
+    submitQuiz();
   };
 
   useEffect(() => {
@@ -50,6 +44,15 @@ export default function QuizPage() {
     }
   }, [activeQuiz, quizId, router]);
 
+  const handleTimeUp = () => {
+    if (activeQuiz && !activeQuiz.completedAt) {
+      if (activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1) {
+        nextQuestion();
+      } else {
+        handleSubmitQuiz(); // Auto-submit if it's the last question
+      }
+    }
+  };
 
   const currentQ = activeQuiz?.questions[activeQuiz.currentQuestionIndex];
 
@@ -63,9 +66,6 @@ export default function QuizPage() {
   }
 
   if (!activeQuiz || activeQuiz.id !== quizId) {
-    // This case handles if the quiz ID is not found or doesn't match active
-    // It might also catch briefly while a quiz is loading if `isLoadingQuiz` isn't perfectly synced
-    // or if `loadQuizFromStorage` fails to find a quiz.
     return (
       <Card className="max-w-lg mx-auto text-center shadow-lg">
         <CardHeader>
@@ -87,18 +87,6 @@ export default function QuizPage() {
     );
   }
   
-  // This check for redirection should ideally be handled by the useEffect above
-  // if (activeQuiz.completedAt) {
-  //    router.replace(`/results/${activeQuiz.id}`);
-  //    return (
-  //     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-  //       <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-  //       <p className="text-lg text-muted-foreground">Quiz completed. Redirecting to results...</p>
-  //     </div>
-  //   );
-  // }
-
-
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
       <Card className="shadow-md">
@@ -110,15 +98,14 @@ export default function QuizPage() {
         </CardHeader>
       </Card>
 
-      {/* Basic Timer Placeholder - can be enabled with QuizTimer component */}
-      {/* {currentQ && (
+      {currentQ && activeQuiz && !activeQuiz.completedAt && (
         <QuizTimer
-          key={currentQ.id} // Reset timer for each question
-          duration={activeQuiz.timeLimitPerQuestion || DEFAULT_QUIZ_TIMER_SECONDS}
+          timerKey={currentQ.id} // Reset timer for each question using question ID as key
+          duration={DEFAULT_QUIZ_TIMER_SECONDS}
           onTimeUp={handleTimeUp}
-          isPaused={false} // Add logic for pausing if needed
+          isPaused={activeQuiz.completedAt !== undefined} 
         />
-      )} */}
+      )}
 
 
       {currentQ && (
@@ -127,20 +114,21 @@ export default function QuizPage() {
           questionNumber={activeQuiz.currentQuestionIndex + 1}
           totalQuestions={activeQuiz.questions.length}
           onAnswer={handleAnswer}
-          isSubmitted={false} // Not in submitted view during quiz taking
+          isSubmitted={activeQuiz.completedAt !== undefined} 
         />
       )}
 
       <QuizProgressBar
         questions={activeQuiz.questions}
         currentQuestionIndex={activeQuiz.currentQuestionIndex}
-        onNavigate={navigateToQuestion} // Use context function for navigation
+        onNavigate={navigateToQuestion}
+        isSubmittedView={activeQuiz.completedAt !== undefined}
       />
 
       <div className="flex justify-between items-center pt-4">
         <Button
           onClick={previousQuestion}
-          disabled={activeQuiz.currentQuestionIndex === 0}
+          disabled={activeQuiz.currentQuestionIndex === 0 || activeQuiz.completedAt !== undefined}
           variant="outline"
           size="lg"
         >
@@ -148,13 +136,18 @@ export default function QuizPage() {
         </Button>
 
         {activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1 ? (
-          <Button onClick={nextQuestion} size="lg">
+          <Button onClick={nextQuestion} size="lg" disabled={activeQuiz.completedAt !== undefined}>
             Next <ChevronRight className="ml-2 h-5 w-5" />
           </Button>
         ) : (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="default" size="lg" className="bg-green-600 hover:bg-green-700 text-white dark:text-primary-foreground">
+              <Button 
+                variant="default" 
+                size="lg" 
+                className="bg-green-600 hover:bg-green-700 text-white dark:text-primary-foreground"
+                disabled={activeQuiz.completedAt !== undefined}
+              >
                 <CheckSquare className="mr-2 h-5 w-5" /> Submit Quiz
               </Button>
             </AlertDialogTrigger>
@@ -179,10 +172,3 @@ export default function QuizPage() {
     </div>
   );
 }
-
-// Removed metadata export as it's not allowed in client components
-// export const metadata = {
-//   title: "Take Quiz",
-//   description: "Engage in an interactive quiz on your chosen topic.",
-// };
-
