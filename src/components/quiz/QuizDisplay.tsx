@@ -6,9 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuiz } from "@/contexts/QuizContext";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, Volume2, Loader2, Info } from "lucide-react";
+import { useTheme } from "@/providers/ThemeProvider";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface QuizDisplayProps {
   question: QuizQuestion;
@@ -21,19 +29,41 @@ interface QuizDisplayProps {
 export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer, isSubmitted }: QuizDisplayProps) {
   const [selectedValue, setSelectedValue] = useState<string | undefined>(question.userAnswer);
   const { activeQuiz } = useQuiz();
+  const { accessibility } = useTheme();
+  const { toast } = useToast();
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  // speechRef is not strictly needed with onstart/onend, but can be useful for direct manipulation if required.
+  // const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+
 
   useEffect(() => {
     setSelectedValue(question.userAnswer);
-  }, [question.userAnswer]);
+    // Cancel any ongoing speech if the question changes
+    if (window.speechSynthesis && window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  }, [question.id, question.userAnswer]);
+
+  // Cleanup speech synthesis on component unmount
+  useEffect(() => {
+    return () => {
+      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+      setIsSpeaking(false);
+    };
+  }, []);
+
 
   const handleValueChange = (value: string) => {
-    if (isSubmitted) return; // Don't allow changes after submission view
+    if (isSubmitted || activeQuiz?.completedAt) return; 
     setSelectedValue(value);
     onAnswer(value);
   };
 
   const getOptionStyle = (option: string) => {
-    if (!isSubmitted && !activeQuiz?.completedAt) return ""; // No styling before submission
+    if (!isSubmitted && !activeQuiz?.completedAt) return "";
     if (option === question.correctAnswer) return "text-green-600 dark:text-green-400 font-semibold";
     if (option === question.userAnswer && option !== question.correctAnswer) return "text-red-600 dark:text-red-400 line-through";
     return "text-muted-foreground";
@@ -46,13 +76,60 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
     return null;
   }
 
+  const handleSpeak = () => {
+    if (!accessibility.textToSpeech || !question.question) return;
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    if (window.speechSynthesis) {
+      if (window.speechSynthesis.speaking) { 
+        window.speechSynthesis.cancel();
+      }
+      const utterance = new SpeechSynthesisUtterance(question.question);
+      // speechRef.current = utterance; 
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = (event) => {
+        setIsSpeaking(false);
+        console.error("Speech synthesis error", event);
+        toast({ title: "Speech Error", description: "Could not play audio for the question.", variant: "destructive" });
+      };
+      window.speechSynthesis.speak(utterance);
+    } else {
+      toast({ title: "TTS Not Supported", description: "Your browser does not support text-to-speech.", variant: "destructive" });
+    }
+  };
+
+
   return (
     <Card className="w-full shadow-lg">
-      <CardHeader>
-        <CardDescription className="text-base">
-          Question {questionNumber} of {totalQuestions}
-        </CardDescription>
-        <CardTitle className="text-2xl leading-relaxed">{question.question}</CardTitle>
+      <CardHeader className="relative">
+        <div className="flex justify-between items-start">
+            <div>
+                 <CardDescription className="text-base">
+                    Question {questionNumber} of {totalQuestions}
+                </CardDescription>
+                <CardTitle className="text-2xl leading-relaxed mt-1 pr-12">{question.question}</CardTitle>
+            </div>
+            {accessibility.textToSpeech && (
+                 <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={handleSpeak} aria-label={isSpeaking ? "Stop speaking" : "Speak question"} className="ml-2 shrink-0">
+                                {isSpeaking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Volume2 className="h-5 w-5" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                        <p>{isSpeaking ? "Stop speaking" : "Speak question"}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            )}
+        </div>
       </CardHeader>
       <CardContent>
         <RadioGroup
@@ -65,8 +142,8 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
             <Label
               key={index}
               htmlFor={`${question.id}-option-${index}`}
-              className={`flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors
-                ${selectedValue === option && !isSubmitted ? 'ring-2 ring-primary border-primary' : ''}
+              className={`flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-accent/10 transition-colors
+                ${selectedValue === option && !isSubmitted && !activeQuiz?.completedAt ? 'ring-2 ring-primary border-primary bg-primary/5' : ''}
                 ${(isSubmitted || activeQuiz?.completedAt) && option === question.correctAnswer ? 'border-green-500 bg-green-500/10' : ''}
                 ${(isSubmitted || activeQuiz?.completedAt) && option === question.userAnswer && option !== question.correctAnswer ? 'border-red-500 bg-red-500/10' : ''}
               `}
@@ -77,6 +154,19 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
             </Label>
           ))}
         </RadioGroup>
+        {(isSubmitted || activeQuiz?.completedAt) && question.userAnswer !== question.correctAnswer && (
+          <Card className="mt-4 border-blue-500 bg-blue-500/10">
+            <CardContent className="p-4">
+                <div className="flex items-start">
+                    <Info className="h-5 w-5 text-blue-600 mr-3 mt-1 shrink-0" />
+                    <div>
+                        <p className="text-sm font-semibold text-blue-700">Correct Answer:</p>
+                        <p className="text-sm text-blue-600">{question.correctAnswer}</p>
+                    </div>
+                </div>
+            </CardContent>
+          </Card>
+        )}
       </CardContent>
     </Card>
   );

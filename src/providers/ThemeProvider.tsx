@@ -105,11 +105,7 @@ export function ThemeProvider({
 
   const toggleTextToSpeech = () => {
     setAccessibilityState(prev => ({ ...prev, textToSpeech: !prev.textToSpeech }));
-     if (!accessibility.textToSpeech && window.speechSynthesis) {
-        // Simple alert for TTS activation, actual implementation can be more complex
-        const utterance = new SpeechSynthesisUtterance("Text to speech enabled.");
-        window.speechSynthesis.speak(utterance);
-      }
+    // Actual speech synthesis will be handled by components that need it (e.g., QuizDisplay)
   }
 
 

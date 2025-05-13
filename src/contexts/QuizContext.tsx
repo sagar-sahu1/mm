@@ -20,6 +20,7 @@ interface QuizContextType {
   clearActiveQuiz: () => void;
   allQuizzes: Quiz[]; // For potentially listing past quizzes
   deleteQuiz: (quizId: string) => void;
+  clearAllCompletedQuizzes: () => void; // New function
 }
 
 const QuizContext = createContext<QuizContextType | undefined>(undefined);
@@ -91,10 +92,11 @@ export function QuizProvider({ children }: { children: ReactNode }) {
         completedAt: Date.now(),
       };
       setAllQuizzes(prev => prev.map(q => q.id === completedQuiz.id ? completedQuiz : q));
-      router.push(`/results/${completedQuiz.id}`);
-      return completedQuiz; // Return it so the page can use it immediately if needed
+      // router.push(`/results/${completedQuiz.id}`); // Navigation handled by QuizPage now
+      return completedQuiz; 
     });
-  }, [router, setAllQuizzes]);
+     // router.push will be called from the page after submitQuiz updates state
+  }, [setAllQuizzes]);
 
   const loadQuizFromStorage = useCallback((quizId: string): Quiz | null => {
     setIsLoadingQuiz(true);
@@ -119,11 +121,17 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     }
   }, [setAllQuizzes, activeQuiz]);
 
+  const clearAllCompletedQuizzes = useCallback(() => {
+    setAllQuizzes(prev => prev.filter(q => !q.completedAt));
+    if (activeQuiz && activeQuiz.completedAt) {
+      setActiveQuiz(null); // Clear active quiz if it was a completed one that got cleared
+    }
+  }, [setAllQuizzes, activeQuiz]);
+
   // Persist activeQuiz to localStorage to handle page refresh during a quiz
   useEffect(() => {
     if (activeQuiz) {
-      // This is a simple approach; more robust would be to update the specific quiz in allQuizzes
-      const tempQuiz = { ...activeQuiz }; // Don't directly mutate, ensure it's a new object for local storage
+      const tempQuiz = { ...activeQuiz }; 
       localStorage.setItem('mindmash-active-quiz-temp', JSON.stringify(tempQuiz));
     } else {
       localStorage.removeItem('mindmash-active-quiz-temp');
@@ -136,13 +144,11 @@ export function QuizProvider({ children }: { children: ReactNode }) {
     if (savedActiveQuiz) {
       try {
         const parsedQuiz = JSON.parse(savedActiveQuiz) as Quiz;
-        // Basic validation
         if (parsedQuiz.id && parsedQuiz.questions && typeof parsedQuiz.currentQuestionIndex === 'number') {
-           // Only set if not completed, or if on results page for that quiz
           if (!parsedQuiz.completedAt || window.location.pathname.startsWith(`/results/${parsedQuiz.id}`) || window.location.pathname.startsWith(`/quiz/${parsedQuiz.id}`)) {
             setActiveQuiz(parsedQuiz);
           } else {
-             localStorage.removeItem('mindmash-active-quiz-temp'); // Clean up completed quiz from temp active storage
+             localStorage.removeItem('mindmash-active-quiz-temp'); 
           }
         }
       } catch (e) {
@@ -154,7 +160,7 @@ export function QuizProvider({ children }: { children: ReactNode }) {
 
 
   return (
-    <QuizContext.Provider value={{ activeQuiz, isLoadingQuiz, startQuiz, answerQuestion, nextQuestion, previousQuestion, submitQuiz, loadQuizFromStorage, clearActiveQuiz, allQuizzes, deleteQuiz }}>
+    <QuizContext.Provider value={{ activeQuiz, isLoadingQuiz, startQuiz, answerQuestion, nextQuestion, previousQuestion, submitQuiz, loadQuizFromStorage, clearActiveQuiz, allQuizzes, deleteQuiz, clearAllCompletedQuizzes }}>
       {children}
     </QuizContext.Provider>
   );
@@ -167,4 +173,3 @@ export function useQuiz() {
   }
   return context;
 }
-

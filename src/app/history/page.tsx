@@ -1,0 +1,152 @@
+
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useQuiz } from '@/contexts/QuizContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Trash2, ListChecks, FileX, RotateCcw, Eye } from 'lucide-react';
+import { format } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+
+export default function QuizHistoryPage() {
+  const { allQuizzes, deleteQuiz, clearAllCompletedQuizzes } = useQuiz();
+  const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const completedQuizzes = allQuizzes
+    .filter(quiz => quiz.completedAt)
+    .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+
+  const handleDelete = () => {
+    if (quizToDelete) {
+      deleteQuiz(quizToDelete);
+      setQuizToDelete(null);
+    }
+  };
+
+  const handleClearAll = () => {
+    clearAllCompletedQuizzes();
+    setShowClearAllConfirm(false);
+  };
+
+  if (!isClient) {
+    // You can render a loading skeleton here if preferred
+    return <div className="flex justify-center items-center h-64"><p>Loading history...</p></div>;
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-8">
+      <Card className="shadow-lg">
+        <CardHeader className="flex flex-row justify-between items-center">
+          <div>
+            <CardTitle className="text-3xl font-bold flex items-center">
+              <ListChecks className="mr-3 h-8 w-8 text-primary" />
+              Quiz History
+            </CardTitle>
+            <CardDescription className="text-lg text-muted-foreground">
+              Review your past quiz performance.
+            </CardDescription>
+          </div>
+          {completedQuizzes.length > 0 && (
+            <AlertDialog open={showClearAllConfirm} onOpenChange={setShowClearAllConfirm}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="mr-2 h-4 w-4" /> Clear All History
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action will permanently delete all your completed quiz history. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClearAll} className="bg-destructive hover:bg-destructive/90">
+                    Yes, Clear All
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </CardHeader>
+        <CardContent>
+          {completedQuizzes.length === 0 ? (
+            <div className="text-center py-10">
+              <FileX className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+              <h3 className="text-xl font-semibold mb-2">No Quiz History Yet</h3>
+              <p className="text-muted-foreground mb-6">
+                Looks like you haven't completed any quizzes. Start one now!
+              </p>
+              <Button asChild>
+                <Link href="/create-quiz">
+                  <RotateCcw className="mr-2 h-4 w-4" /> Create a Quiz
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <ScrollArea className="h-[calc(100vh-300px)] pr-4"> {/* Adjust height as needed */}
+              <div className="space-y-4">
+                {completedQuizzes.map((quiz) => (
+                  <Card key={quiz.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-xl">{quiz.topic}</CardTitle>
+                          <CardDescription>
+                            Completed on: {format(new Date(quiz.completedAt!), 'PPpp')}
+                          </CardDescription>
+                        </div>
+                         <Badge variant={quiz.score! / quiz.questions.length >= 0.7 ? "default" : (quiz.score! / quiz.questions.length >= 0.4 ? "secondary" : "destructive")} className="text-sm">
+                           Score: {quiz.score} / {quiz.questions.length} ({Math.round((quiz.score! / quiz.questions.length) * 100)}%)
+                         </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardFooter className="flex justify-end gap-2">
+                       <Button variant="outline" size="sm" asChild>
+                         <Link href={`/results/${quiz.id}`}>
+                           <Eye className="mr-2 h-4 w-4" /> View Results
+                         </Link>
+                       </Button>
+                       <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setQuizToDelete(quiz.id)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete this quiz?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete the results for the "{quiz.topic}" quiz? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setQuizToDelete(null)}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                              Confirm Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

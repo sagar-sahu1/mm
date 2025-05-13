@@ -39,17 +39,19 @@ export default function QuizPage() {
     }
   };
 
-  const currentQ = activeQuiz?.questions[activeQuiz.currentQuestionIndex];
+  const handleSubmitQuiz = () => {
+    submitQuiz(); // Context now handles setting the completed quiz state
+    // useEffect below will handle navigation once activeQuiz reflects completion
+  };
 
-  // const handleTimeUp = () => {
-  //   if (activeQuiz && activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1) {
-  //     nextQuestion();
-  //   } else if (activeQuiz) {
-  //     // Potentially auto-submit or mark as time up for last question
-  //     // For now, user must click submit
-  //     alert("Time is up for this question! Move to next or submit.");
-  //   }
-  // };
+  useEffect(() => {
+    if (activeQuiz && activeQuiz.id === quizId && activeQuiz.completedAt) {
+      router.push(`/results/${activeQuiz.id}`);
+    }
+  }, [activeQuiz, quizId, router]);
+
+
+  const currentQ = activeQuiz?.questions[activeQuiz.currentQuestionIndex];
 
   if (!isClient || isLoadingQuiz) {
     return (
@@ -61,6 +63,9 @@ export default function QuizPage() {
   }
 
   if (!activeQuiz || activeQuiz.id !== quizId) {
+    // This case handles if the quiz ID is not found or doesn't match active
+    // It might also catch briefly while a quiz is loading if `isLoadingQuiz` isn't perfectly synced
+    // or if `loadQuizFromStorage` fails to find a quiz.
     return (
       <Card className="max-w-lg mx-auto text-center shadow-lg">
         <CardHeader>
@@ -69,8 +74,8 @@ export default function QuizPage() {
         </CardHeader>
         <CardContent>
           <CardDescription className="text-base mb-6">
-            The quiz you are looking for could not be found or is no longer active.
-            It might have been deleted or the link might be incorrect.
+            The quiz you are looking for could not be found, may not have loaded correctly, or the link might be incorrect.
+            Try refreshing or starting a new quiz.
           </CardDescription>
           <Button asChild>
             <Link href="/create-quiz">
@@ -82,17 +87,16 @@ export default function QuizPage() {
     );
   }
   
-  if (activeQuiz.completedAt) {
-     // This quiz is already completed, redirect to results.
-     // This handles cases where user tries to navigate back to quiz page after completion.
-     router.replace(`/results/${activeQuiz.id}`);
-     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">Quiz completed. Redirecting to results...</p>
-      </div>
-    );
-  }
+  // This check for redirection should ideally be handled by the useEffect above
+  // if (activeQuiz.completedAt) {
+  //    router.replace(`/results/${activeQuiz.id}`);
+  //    return (
+  //     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+  //       <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+  //       <p className="text-lg text-muted-foreground">Quiz completed. Redirecting to results...</p>
+  //     </div>
+  //   );
+  // }
 
 
   return (
@@ -131,21 +135,10 @@ export default function QuizPage() {
         questions={activeQuiz.questions}
         currentQuestionIndex={activeQuiz.currentQuestionIndex}
         onNavigate={(index) => {
-          // setActiveQuiz directly to navigate, though a dedicated function in context is better
-          // For now, this is fine for progressBar.
-          // Ensure activeQuiz is updated for this to work if context doesn't expose setCurrentQuestionIndex directly
-          if (activeQuiz) {
-            const {activeQuiz: currentActiveQuiz, ...quizActions} = useQuiz(); // Re-get context to avoid stale closure
-            quizActions.loadQuizFromStorage(activeQuiz.id); // This re-fetches and sets activeQuiz
-            // A bit hacky, ideally context has a setCurrentQuestionIndex
-            // This is problematic. For now, progress bar is more visual than functional for direct nav.
-             if (currentActiveQuiz) { // Check again after re-fetch attempt
-                currentActiveQuiz.currentQuestionIndex = index; // This will be local state, needs context update
-             }
-             // This is problematic. For now, progress bar is more visual than functional for direct nav.
-             // For now, clicking progress bar won't navigate to avoid complex state sync issues without proper context methods.
-             console.log("Navigate to question (visual only for now):", index + 1);
-          }
+          // For now, clicking progress bar won't navigate to avoid complex state sync issues without proper context methods.
+          console.log("Navigate to question (visual only for now):", index + 1);
+          // To implement navigation, a context function like `setCurrentQuestionIndex(index)` would be needed.
+          // setActiveQuiz(prev => prev ? {...prev, currentQuestionIndex: index} : null); // This would update local state, but might conflict with context's next/prev
         }}
       />
 
@@ -166,7 +159,7 @@ export default function QuizPage() {
         ) : (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="default" size="lg" className="bg-green-600 hover:bg-green-700 text-white">
+              <Button variant="default" size="lg" className="bg-green-600 hover:bg-green-700 text-white dark:text-primary-foreground">
                 <CheckSquare className="mr-2 h-5 w-5" /> Submit Quiz
               </Button>
             </AlertDialogTrigger>
@@ -180,7 +173,7 @@ export default function QuizPage() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Review Answers</AlertDialogCancel>
-                <AlertDialogAction onClick={submitQuiz} className="bg-green-600 hover:bg-green-700">
+                <AlertDialogAction onClick={handleSubmitQuiz} className="bg-green-600 hover:bg-green-700 text-white dark:text-primary-foreground">
                   Yes, Submit Quiz
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -197,4 +190,3 @@ export default function QuizPage() {
 //   title: "Take Quiz",
 //   description: "Engage in an interactive quiz on your chosen topic.",
 // };
-
