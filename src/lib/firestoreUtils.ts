@@ -110,7 +110,13 @@ export async function createUserProfileDocument(uid: string, data: UserProfileFi
 export async function getLeaderboardUsers(limitCount: number = 10): Promise<UserProfile[]> {
   const db = getDb();
   const usersRef = collection(db, 'users');
-  // Order by totalScore (descending) then by quizzesCompleted (descending as tie-breaker)
+  // IMPORTANT: This query requires a composite index in Firestore.
+  // If you see an error in the Firebase console logs or in the browser console
+  // similar to "The query requires an index. You can create it here: ...",
+  // please follow the link provided in the error message to create the necessary index.
+  // The index will likely be on the 'users' collection, with fields:
+  // 1. totalScore (Descending)
+  // 2. quizzesCompleted (Descending)
   const q = query(
     usersRef, 
     orderBy('totalScore', 'desc'), 
@@ -141,9 +147,10 @@ export async function getLeaderboardUsers(limitCount: number = 10): Promise<User
   } catch (error) {
     console.error("Error fetching leaderboard users:", error);
     // Check for Firestore index errors specifically
-    if (error instanceof Error && error.message.includes('firestore/indexes')) {
-      console.warn("Firestore index missing for leaderboard query. Please create a composite index for 'users' collection on 'totalScore' (desc) and 'quizzesCompleted' (desc).");
+    if (error instanceof Error && (error.message.includes('firestore/indexes') || (error as any).code === 'failed-precondition' && error.message.includes('query requires an index'))) {
+      console.warn("Firestore index missing for leaderboard query. Please create a composite index for 'users' collection on 'totalScore' (desc) and 'quizzesCompleted' (desc). The Firebase error message in the console should provide a direct link to create it.");
     }
     return [];
   }
 }
+
