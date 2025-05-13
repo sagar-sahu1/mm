@@ -231,70 +231,55 @@ export async function getUserLoginActivityForYear(uid: string, year: number): Pr
 
 
 export function calculateUserLoginStreak(uniqueLoginDates: string[]): number {
-  if (uniqueLoginDates.length === 0) {
+  if (!uniqueLoginDates || uniqueLoginDates.length === 0) {
     return 0;
   }
 
-  // Ensure dates are sorted for correct streak calculation (YYYY-MM-DD format sorts correctly)
-  const sortedDates = [...uniqueLoginDates].sort().reverse(); // Newest first
-
-  let currentStreak = 0;
-  const today = new Date();
-  const todayStr = format(today, 'yyyy-MM-dd');
-  let currentDateToCheck = today;
-
-  // Check if today is a login day
-  if (sortedDates[0] === todayStr) {
-    currentStreak = 1;
-    currentDateToCheck = subDays(today, 1); // Start checking from yesterday
-  } else {
-    // Check if yesterday was a login day (if today wasn't)
-    const yesterdayStr = format(subDays(today, 1), 'yyyy-MM-dd');
-    if (sortedDates[0] === yesterdayStr) {
-      currentStreak = 0; // Streak broken today, but we'll count from yesterday
-      currentDateToCheck = subDays(today, 1);
-    } else {
-      return 0; // No login today or yesterday
-    }
-  }
-  
-  // Iterate backwards from the day before `currentDateToCheck` effectively started from
-  let i = (sortedDates[0] === todayStr || sortedDates[0] === format(subDays(today,1), 'yyyy-MM-dd')) ? 1 : 0;
-  
-  if (sortedDates[0] === format(currentDateToCheck, 'yyyy-MM-dd')) { // If streak is being counted from yesterday
-     currentStreak = 1; // Initialize to 1 for yesterday
-  }
-
-
-  for (; i < sortedDates.length; i++) {
-    const expectedDateStr = format(currentDateToCheck, 'yyyy-MM-dd');
-    if (sortedDates[i] === expectedDateStr) {
-      if (sortedDates[0] !== todayStr && currentStreak === 0 && sortedDates[i] === format(subDays(today,1), 'yyyy-MM-dd')) {
-         // This is the first day of a streak that ended yesterday
-         currentStreak = 1;
-      } else if (sortedDates[0] === todayStr || currentStreak > 0) {
-         // Only increment if streak has started (either today or continuing from yesterday)
-         currentStreak++;
+  // Normalize input dates to 'yyyy-MM-dd' and store in a Set for efficient lookup
+  const loginSet = new Set(uniqueLoginDates.map(dateStr => {
+    try {
+      // Handles cases where dateStr might not be directly parsable by new Date() or might be a Firestore Timestamp
+      const dateObj = new Date(dateStr);
+      if (isNaN(dateObj.getTime())) { // Check if date is invalid
+          // Attempt to parse as ISO string if it looks like one (e.g. Firestore timestamp toDate().toISOString())
+          if (dateStr.includes('T') && dateStr.includes('Z')) {
+            const isoDateObj = new Date(dateStr);
+            if (!isNaN(isoDateObj.getTime())) return format(isoDateObj, 'yyyy-MM-dd');
+          }
+          console.warn(`Invalid date string encountered in uniqueLoginDates: ${dateStr}`);
+          return null; 
       }
-      currentDateToCheck = subDays(currentDateToCheck, 1);
-    } else if (differenceInDays(currentDateToCheck, new Date(sortedDates[i])) > 0 ){
-      // Gap detected, streak broken
-      break;
+      return format(dateObj, 'yyyy-MM-dd');
+    } catch (e) {
+      console.warn(`Error parsing date string: ${dateStr}`, e);
+      return null; 
     }
-     // If sortedDates[i] is older than currentDateToCheck, it means there was a gap.
+  }).filter(date => date !== null) as Set<string>);
+
+
+  if (loginSet.size === 0) return 0; // All dates were invalid or empty
+
+  const today = new Date();
+  
+  let currentStreak = 0;
+  // Start checking from today and go backwards
+  let currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate()); // Normalize to start of day
+
+  for (let i = 0; ; i++) { // Loop indefinitely, break inside
+    const dateToCheck = subDays(currentDate, i); // currentDate is today for i=0, yesterday for i=1, etc.
+    const dateToCheckStr = format(dateToCheck, 'yyyy-MM-dd');
+    
+    if (loginSet.has(dateToCheckStr)) {
+      currentStreak++;
+    } else {
+      // If the first day we check (i=0, which is today) is not a login day,
+      // then the current streak is 0.
+      if (i === 0) return 0; 
+      // Otherwise, the streak ended on the previous day (dateToCheck was the first non-login day found going backwards)
+      break; 
+    }
   }
   
-  // If today wasn't a login day, but yesterday was, the streak count is for the past.
-  // If today IS a login day, currentStreak already counts today.
-  if (sortedDates[0] !== todayStr && currentStreak > 0) {
-      // If the most recent login wasn't today, the streak is effectively 0 for "today's streak"
-      // but the calculated value `currentStreak` is the length of the historical streak ending on `sortedDates[0]`
-      // For a "current live streak" display, if today is not a login, streak is 0.
-      // The image implies a "current live streak".
-      return 0;
-  }
-
-
   return currentStreak;
 }
 
@@ -307,11 +292,30 @@ export function getWeeklyLoginStatus(uniqueLoginDates: string[], referenceDate: 
     start: startOfCurrentWeek,
     end: dateFnsAddDays(startOfCurrentWeek, 6),
   });
+  
+  // Normalize uniqueLoginDates to 'yyyy-MM-dd' format and store in a Set for efficient lookup
+  const loginSet = new Set(uniqueLoginDates.map(dateStr => {
+     try {
+      const dateObj = new Date(dateStr);
+      if (isNaN(dateObj.getTime())) {
+         if (dateStr.includes('T') && dateStr.includes('Z')) {
+            const isoDateObj = new Date(dateStr);
+            if (!isNaN(isoDateObj.getTime())) return format(isoDateObj, 'yyyy-MM-dd');
+          }
+        return null;
+      }
+      return format(dateObj, 'yyyy-MM-dd');
+    } catch (e) {
+      return null;
+    }
+  }).filter(date => date !== null));
+
 
   const weeklyStatus = weekDays.map(day => {
     const dayStr = format(day, 'yyyy-MM-dd');
-    return uniqueLoginDates.includes(dayStr);
+    return loginSet.has(dayStr);
   });
 
   return weeklyStatus; // [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
 }
+

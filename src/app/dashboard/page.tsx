@@ -8,11 +8,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuiz } from '@/contexts/QuizContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, UserCircle, ListChecks, Lightbulb, Link2, CalendarDays, BarChartHorizontalBig, PieChartIcon } from 'lucide-react';
+import { Loader2, UserCircle, ListChecks, Lightbulb, Link2, CalendarDays, BarChartHorizontalBig } from 'lucide-react';
 import type { Quiz, QuizDifficulty } from '@/types';
 import { ActivityHeatmap } from '@/components/dashboard/ActivityHeatmap';
 import { LoginStreakDisplay } from '@/components/dashboard/LoginStreakDisplay';
-import { QuizDifficultyPieChart } from '@/components/dashboard/QuizDifficultyPieChart';
+// QuizDifficultyPieChart import removed
 import { getUniqueLoginDates, calculateUserLoginStreak, getWeeklyLoginStatus } from '@/lib/firestoreUtils';
 import { QUIZ_DIFFICULTY_LEVELS } from '@/lib/constants';
 
@@ -71,11 +71,7 @@ export default function DashboardPage() {
 
   const uniqueTopicsExplored = new Set(completedQuizzes.map(quiz => quiz.topic.toLowerCase())).size;
 
-  const difficultyDistribution = QUIZ_DIFFICULTY_LEVELS.map(level => {
-    const count = completedQuizzes.filter(quiz => quiz.difficulty === level.value).length;
-    return { name: level.label, value: count };
-  }).filter(d => d.value > 0);
-
+  // difficultyDistribution logic removed as pie chart is removed
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -124,27 +120,21 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card className="shadow-xl h-full">
-            <CardHeader>
-              <CardTitle className="text-2xl font-semibold flex items-center">
-                <CalendarDays className="mr-3 h-7 w-7 text-primary" />
-                Your Login Activity
-              </CardTitle>
-              <CardDescription>
-                Heatmap of your login activity over the past year.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 md:p-6">
-              {currentUser && <ActivityHeatmap userId={currentUser.uid} />}
-            </CardContent>
-          </Card>
-        </div>
-        <div className="lg:col-span-1">
-           <QuizDifficultyPieChart data={difficultyDistribution} />
-        </div>
-      </div>
+      {/* Layout adjusted as PieChart is removed */}
+      <Card className="shadow-xl h-full">
+        <CardHeader>
+          <CardTitle className="text-2xl font-semibold flex items-center">
+            <CalendarDays className="mr-3 h-7 w-7 text-primary" />
+            Your Login Activity
+          </CardTitle>
+          <CardDescription>
+            Heatmap of your login activity over the past year.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 md:p-6">
+          {currentUser && <ActivityHeatmap userId={currentUser.uid} />}
+        </CardContent>
+      </Card>
 
 
       <Card className="shadow-xl">
