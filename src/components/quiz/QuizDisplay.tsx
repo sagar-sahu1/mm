@@ -1,4 +1,5 @@
-${"use client"};
+
+'use client';
 
 import type { QuizQuestion } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -119,7 +120,7 @@ export function QuizDisplay({
         }
         
         const errorCode = event.error || "unknown_error";
-        console.warn( 
+         console.error( 
           `Speech synthesis error. Code: ${errorCode}. Utterance: "${event.utterance?.text?.substring(0,50)}..."`,
           "Full event:", event
         );
