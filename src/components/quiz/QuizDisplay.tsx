@@ -110,7 +110,7 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
         
         const errorCode = event.error || "unknown_error";
         // Log more detailed error information to the console for developers
-        console.error(
+        console.warn( // Changed from console.error
           `Speech synthesis error. Code: ${errorCode}. Utterance: "${event.utterance?.text?.substring(0,50)}..."`,
           "Full event:", event
         );
@@ -118,7 +118,10 @@ export function QuizDisplay({ question, questionNumber, totalQuestions, onAnswer
         let userMessage = "Could not play audio for the question.";
         if (event.error && typeof event.error === 'string' && event.error.trim() !== "") {
             userMessage += ` Reason: ${event.error}. Please check browser permissions and TTS settings.`;
-        } else {
+        } else if (event.error) {
+             userMessage += ` Error code: ${event.error}. Please check browser permissions and TTS settings.`;
+        }
+         else {
             userMessage += " An unspecified Text-to-Speech error occurred.";
         }
         toast({ title: "Speech Error", description: userMessage, variant: "destructive" });
