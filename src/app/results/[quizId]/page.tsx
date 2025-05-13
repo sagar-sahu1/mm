@@ -75,7 +75,9 @@ export default function ResultsPage() {
   return <ResultDisplay quiz={quizToDisplay} />;
 }
 
-export const metadata = {
-  title: "Quiz Results",
-  description: "View your performance on the completed quiz.",
-};
+// Removed metadata export as it's not allowed in client components
+// export const metadata = {
+//   title: "Quiz Results",
+//   description: "View your performance on the completed quiz.",
+// };
+
