@@ -19,8 +19,8 @@ export type GenerateQuizQuestionsInput = z.infer<typeof GenerateQuizQuestionsInp
 
 const QuizQuestionSchema = z.object({
   question: z.string().describe('The quiz question.'),
-  options: z.array(z.string()).describe('The possible answers to the question.'),
-  correctAnswer: z.string().describe('The correct answer to the question.'),
+  options: z.array(z.string()).length(4).describe('An array of 4 possible answers to the question.'),
+  correctAnswer: z.string().describe('The correct answer to the question. This must be one of the strings provided in the "options" array.'),
 });
 
 const GenerateQuizQuestionsOutputSchema = z.object({
@@ -38,11 +38,9 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateQuizQuestionsOutputSchema},
   prompt: `You are a quiz generator. Generate {{numberOfQuestions}} quiz questions about {{topic}} with {{difficulty}} difficulty.
 
-Each question should have 4 options, one of which is the correct answer.
+Each question should have exactly 4 options, one of which is the correct answer.
 
-Output the questions in the following JSON format:
-
-{{$schema output}}`,
+Please provide the output in the JSON format specified by the output schema. Ensure that the "correctAnswer" for each question is one of the values present in its "options" array.`,
 });
 
 const generateQuizQuestionsFlow = ai.defineFlow(
@@ -56,3 +54,4 @@ const generateQuizQuestionsFlow = ai.defineFlow(
     return output!;
   }
 );
+
