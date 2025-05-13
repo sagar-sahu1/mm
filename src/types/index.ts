@@ -45,10 +45,14 @@ export interface UserProfile {
   bio: string; 
   birthdate: string; // ISO string "YYYY-MM-DD"
   socialLinks?: SocialLinks; // Firestore
-  createdAt?: number; // Firestore, when profile doc was created
-  updatedAt?: number; // Firestore, when profile doc was last updated
+  createdAt?: number | Timestamp; 
+  updatedAt?: number | Timestamp; 
   totalScore?: number; // Aggregated score for leaderboard
   quizzesCompleted?: number; // Count of completed quizzes for leaderboard
+  lastLoginAt?: Timestamp; // Timestamp of the last login
+  loginHistory?: string[]; // Array of 'YYYY-MM-DD' date strings for unique login days
+  currentStreak?: number; // Current daily login streak
+  lastStreakLoginDate?: string; // 'YYYY-MM-DD' of the last login that counted for the streak
 }
 
 // Data structure for Firestore 'users' collection documents
@@ -59,14 +63,19 @@ export interface UserProfileFirestoreData {
   birthdate: string; // ISO string "YYYY-MM-DD"
   socialLinks?: SocialLinks;
   email?: string; 
-  createdAt?: number | Timestamp; // Allow both for creation and reading
-  updatedAt?: number | Timestamp; // Allow both for creation and reading
+  createdAt?: number | Timestamp; 
+  updatedAt?: number | Timestamp; 
   totalScore?: number; 
   quizzesCompleted?: number; 
+  lastLoginAt?: Timestamp;
+  loginHistory?: string[];
+  currentStreak?: number;
+  lastStreakLoginDate?: string;
 }
 
 export interface UserActivityLog {
   uid: string;
-  timestamp: Timestamp;
-  date: string; // YYYY-MM-DD format for easy grouping
+  timestamp: Timestamp; // Representing the date of activity for heatmap
+  date: string; // YYYY-MM-DD format for easy grouping. For heatmap, this will be a unique login day.
+  count?: number; // For heatmap, this would be 1 for each unique login day.
 }

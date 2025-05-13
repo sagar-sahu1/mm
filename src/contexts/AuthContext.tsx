@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ReactNode, Dispatch, SetStateAction } from 'react';
@@ -11,7 +12,7 @@ import {
   type AuthError
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { useRouter, useSearchParams } from 'next/navigation'; // Added useSearchParams
+import { useRouter, useSearchParams } from 'next/navigation'; 
 import { useToast } from '@/hooks/use-toast';
 import { createUserProfileDocument, getUserProfile, recordUserLogin } from '@/lib/firestoreUtils';
 
@@ -29,18 +30,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const searchParams = useSearchParams(); // Get search params
+  const searchParams = useSearchParams(); 
   const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      // Profile completion check is removed from here to make it optional.
-      // Navigation flow is no longer interrupted by profile status.
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []); // Removed router and toast dependencies as they are stable or handled elsewhere
+  }, []); 
 
   const handleAuthError = (error: AuthError, defaultMessage: string) => {
     console.error("Firebase Auth Error:", error);
@@ -78,10 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       setCurrentUser(userCredential.user);
-      await recordUserLogin(userCredential.user.uid);
+      await recordUserLogin(userCredential.user.uid); // Record login
       toast({ title: 'Logged In', description: 'Successfully logged in!' });
       
-      const redirectUrl = searchParams.get('redirect') || '/dashboard'; // Get redirect from query or default
+      const redirectUrl = searchParams.get('redirect') || '/dashboard'; 
       router.push(redirectUrl); 
       return userCredential.user;
     } catch (error) {
@@ -96,16 +95,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       setCurrentUser(userCredential.user);
+      // createUserProfileDocument now initializes login activity fields
       await createUserProfileDocument(userCredential.user.uid, {
         email: userCredential.user.email || undefined,
         displayName: userCredential.user.displayName || email.split('@')[0],
-        bio: '', 
-        birthdate: '', 
       });
-      await recordUserLogin(userCredential.user.uid);
+      // recordUserLogin is implicitly handled by createUserProfileDocument's initial setup
+      // or could be called explicitly if specific "first login event" is needed beyond profile creation.
+      // For simplicity, we assume profile creation sets up the initial login state.
+      // If createUserProfileDocument itself calls recordUserLogin or sets initial streak, that's fine.
+      // The current createUserProfileDocument initializes these fields.
+
       toast({ title: 'Account Created', description: 'Welcome to MindMash! You can complete your profile details later.' });
       
-      const redirectUrl = searchParams.get('redirect') || '/dashboard'; // Get redirect from query or default
+      const redirectUrl = searchParams.get('redirect') || '/dashboard'; 
       router.push(redirectUrl);
       return userCredential.user;
     } catch (error) {
