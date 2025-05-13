@@ -28,10 +28,21 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
-  keywords: ["Quiz", "AI Quiz", "Education", "Learning", "MindMash"],
+  keywords: ["Quiz", "AI Quiz", "Education", "Learning", "MindMash", "Challenge Quiz", "Interactive Quiz"],
   authors: [{ name: "Firebase Studio", url: "https://firebase.google.com/studio/studio" }],
   creator: "Firebase Studio",
   // openGraph, twitter, icons metadata remains commented out for now
+  // For specific pages, metadata can be exported from the page.tsx file if it's a server component
+  // or defined here if a pattern is needed, e.g., for /about or /contact if they were server components.
+  // Example for specific pages (if they were server components):
+  // '/about': {
+  //   title: 'About MindMash',
+  //   description: 'Learn more about MindMash, our mission, and how we use AI to create engaging quizzes.',
+  // },
+  // '/contact': {
+  //   title: 'Contact Us - MindMash',
+  //   description: 'Get in touch with the MindMash team.',
+  // },
 };
 
 export default function RootLayout({

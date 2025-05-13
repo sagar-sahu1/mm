@@ -14,9 +14,13 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Loader2, Link2Icon, Copy, Check } from 'lucide-react';
+import { Loader2, Link2Icon, Copy, Check, AlertTriangle } from 'lucide-react';
 import { QUIZ_DIFFICULTY_LEVELS, DEFAULT_NUMBER_OF_QUESTIONS, MIN_QUESTIONS, MAX_QUESTIONS, type QuizDifficulty } from "@/lib/constants";
 import { useToast } from '@/hooks/use-toast';
+import { generateQuizQuestions, type GenerateQuizQuestionsInput, type QuizQuestion as GenAIQuizQuestion } from '@/ai/flows/generate-quiz-questions';
+import { addChallenge } from '@/lib/firestoreUtils';
+import type { QuizQuestion } from '@/types';
+import { v4 as uuidv4 } from 'uuid';
 
 const challengeFormSchema = z.object({
   topic: z.string().min(2, "Topic must be at least 2 characters.").max(100, "Topic too long."),
@@ -33,6 +37,7 @@ export default function ChallengePage() {
   const [isClient, setIsClient] = useState(false);
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -53,17 +58,62 @@ export default function ChallengePage() {
     },
   });
 
-  const onSubmit = (values: ChallengeFormValues) => {
-    const challengerName = currentUser?.displayName || currentUser?.email || "A friend";
-    const queryParams = new URLSearchParams({
-      topic: values.topic,
-      difficulty: values.difficulty,
-      questions: values.numberOfQuestions.toString(),
-      challengerName: challengerName,
+  const onSubmit = async (values: ChallengeFormValues) => {
+    if (!currentUser) {
+        toast({ title: "Authentication Required", description: "Please log in to create a challenge.", variant: "destructive" });
+        return;
+    }
+    setIsSubmitting(true);
+    setGeneratedLink(null);
+    toast({
+      title: "Generating Challenge Quiz...",
+      description: "Hold tight, the AI is crafting the challenge!",
     });
-    const link = `${window.location.origin}/create-quiz?${queryParams.toString()}`;
-    setGeneratedLink(link);
-    setCopied(false); // Reset copied state when new link is generated
+
+    try {
+      const aiInput: GenerateQuizQuestionsInput = {
+        topic: values.topic,
+        difficulty: values.difficulty,
+        numberOfQuestions: values.numberOfQuestions,
+      };
+      const result = await generateQuizQuestions(aiInput);
+
+      if (result.questions && result.questions.length > 0) {
+        const slug = uuidv4().slice(0, 8); // Use a shorter UUID for the slug
+        
+        const challengeQuestions: QuizQuestion[] = result.questions.map((q: GenAIQuizQuestion) => ({
+          id: uuidv4(), // Each question within the challenge gets a unique ID
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+        }));
+        
+        await addChallenge({
+          topic: values.topic,
+          difficulty: values.difficulty,
+          numberOfQuestions: values.numberOfQuestions,
+          questions: challengeQuestions,
+          challengerUid: currentUser.uid,
+          challengerName: currentUser.displayName || currentUser.email || "A friend",
+        }, slug);
+
+        const link = `${window.location.origin}/challenge/${slug}`;
+        setGeneratedLink(link);
+        setCopied(false);
+        toast({ title: "Challenge Ready!", description: "Share the link below with your friend." });
+      } else {
+        throw new Error("AI did not return any questions for the challenge.");
+      }
+    } catch (error) {
+      console.error("Error generating challenge:", error);
+      toast({
+        title: "Uh oh! Something went wrong.",
+        description: error instanceof Error ? error.message : "Could not generate challenge. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCopyLink = () => {
@@ -72,7 +122,7 @@ export default function ChallengePage() {
         .then(() => {
           setCopied(true);
           toast({ title: "Link Copied!", description: "Challenge link copied to clipboard." });
-          setTimeout(() => setCopied(false), 2000); // Reset copied icon after 2s
+          setTimeout(() => setCopied(false), 2000);
         })
         .catch(() => {
           toast({ title: "Copy Failed", description: "Could not copy link. Please try manually.", variant: "destructive" });
@@ -80,7 +130,7 @@ export default function ChallengePage() {
     }
   };
 
-  if (!isClient || authLoading || !currentUser) {
+  if (!isClient || authLoading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-20rem)]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-3" />
@@ -88,6 +138,30 @@ export default function ChallengePage() {
       </div>
     );
   }
+  
+  if (!currentUser) {
+     return (
+      <div className="flex flex-col justify-center items-center min-h-[calc(100vh-20rem)] text-center p-4">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader>
+            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <CardTitle className="text-2xl">Access Denied</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CardDescription className="text-base mb-6">
+              You need to be logged in to create a challenge.
+            </CardDescription>
+            <Button asChild>
+              <Link href="/login?redirect=/challenge">
+                 Login to Create Challenge
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -98,7 +172,7 @@ export default function ChallengePage() {
           </div>
           <CardTitle className="text-3xl font-bold">Challenge a Friend</CardTitle>
           <CardDescription className="text-lg text-muted-foreground">
-            Set up a quiz and generate a link to challenge one of your friends!
+            Generate a unique quiz and share the link with a friend to challenge them!
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 md:p-8">
@@ -158,7 +232,7 @@ export default function ChallengePage() {
                           min={MIN_QUESTIONS}
                           max={MAX_QUESTIONS}
                           step={1}
-                          defaultValue={[value]}
+                          defaultValue={[value ?? DEFAULT_NUMBER_OF_QUESTIONS]}
                           onValueChange={(vals) => onChange(vals[0])}
                           className="py-3"
                         />
@@ -169,8 +243,15 @@ export default function ChallengePage() {
                 />
               </div>
               
-              <Button type="submit" size="lg" className="w-full md:w-auto text-lg py-6 shadow-md">
-                Generate Challenge Link
+              <Button type="submit" size="lg" className="w-full md:w-auto text-lg py-6 shadow-md" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  "Generate Challenge Link"
+                )}
               </Button>
             </form>
           </Form>
@@ -192,3 +273,4 @@ export default function ChallengePage() {
     </div>
   );
 }
+
