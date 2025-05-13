@@ -5,13 +5,27 @@ import type { ReactNode} from 'react';
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { Quiz, QuizQuestion } from "@/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation"; // Not directly used here for navigation after submitQuiz
 import { v4 as uuidv4 } from 'uuid';
+import type { GenerateQuizQuestionsInput } from '@/ai/flows/generate-quiz-questions';
+
+
+interface StartQuizData extends Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions' | 'config'> {
+  questions: Omit<QuizQuestion, 'id'>[]; // Raw questions from AI
+  config: GenerateQuizQuestionsInput; // AI input config
+  challengerName?: string;
+  // Add new fields from the form
+  subtopic?: string;
+  timeLimit?: number; // in minutes
+  additionalInstructions?: string;
+  isPublic?: boolean;
+}
+
 
 interface QuizContextType {
   activeQuiz: Quiz | null;
   isLoadingQuiz: boolean;
-  startQuiz: (quizData: Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions'> & { questions: Omit<QuizQuestion, 'id'>[], challengerName?: string }) => string;
+  startQuiz: (quizData: StartQuizData) => string;
   answerQuestion: (questionId: string, answer: string) => void;
   nextQuestion: () => void;
   previousQuestion: () => void;
@@ -32,17 +46,24 @@ export function QuizProvider({ children }: { children: ReactNode }) {
   const [allQuizzes, setAllQuizzes] = useLocalStorage<Quiz[]>("mindmash-quizzes", []);
   // const router = useRouter(); // Not directly used here for navigation after submitQuiz
 
-  const startQuiz = useCallback((quizData: Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions'> & { questions: Omit<QuizQuestion, 'id'>[], challengerName?: string }): string => {
+  const startQuiz = useCallback((quizData: StartQuizData): string => {
     setIsLoadingQuiz(true);
     const newQuizId = uuidv4();
     const enrichedQuestions = quizData.questions.map(q => ({...q, id: uuidv4()}));
+    
     const newQuiz: Quiz = {
-      ...quizData,
       id: newQuizId,
+      topic: quizData.topic,
+      subtopic: quizData.subtopic,
+      difficulty: quizData.difficulty,
       questions: enrichedQuestions,
+      config: quizData.config, // This is GenerateQuizQuestionsInput
       createdAt: Date.now(),
       currentQuestionIndex: 0,
-      challengerName: quizData.challengerName, // Include challengerName
+      challengerName: quizData.challengerName,
+      timeLimit: quizData.timeLimit,
+      additionalInstructions: quizData.additionalInstructions,
+      isPublic: quizData.isPublic,
     };
     setActiveQuiz(newQuiz);
     setAllQuizzes(prev => [newQuiz, ...prev.filter(q => q.id !== newQuizId)]);

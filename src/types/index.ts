@@ -13,16 +13,19 @@ export interface QuizQuestion {
 export interface Quiz {
   id: string; // Unique ID for the quiz (e.g., generated UUID)
   topic: string;
+  subtopic?: string; // Optional: Specific subtopic
   difficulty: 'easy' | 'medium' | 'hard';
   questions: QuizQuestion[];
-  config: GenerateQuizQuestionsInput; // Original input to AI
+  config: GenerateQuizQuestionsInput; // Original input to AI, now includes new fields
   createdAt: number; // Timestamp
   score?: number; // Calculated after completion
   completedAt?: number; // Timestamp
   currentQuestionIndex: number; // To track progress
-  timeLimitPerQuestion?: number; // Optional: seconds
+  timeLimit?: number; // Optional: total quiz time limit in minutes
   totalTimeTaken?: number; // Optional: seconds
   challengerName?: string; // Optional: name of the user who challenged
+  additionalInstructions?: string; // Optional: instructions given to AI
+  isPublic?: boolean; // Optional: whether the quiz is public
 }
 
 // For storing quizzes in localStorage, we might simplify or store an array of Quizzes.
