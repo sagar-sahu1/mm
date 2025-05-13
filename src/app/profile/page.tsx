@@ -3,12 +3,12 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UserCircle, LogOut, LogIn } from "lucide-react";
+import { UserCircle, LogOut, Loader2 } from "lucide-react"; // Added Loader2
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import Link from "next/link";
+// Removed Link import as it's not used
 
 export default function UserProfilePage() {
   const { currentUser, logout, loading } = useAuth();
@@ -23,8 +23,9 @@ export default function UserProfilePage() {
 
   if (loading || !currentUser) {
     return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-20rem)]">
-        <p>Loading profile...</p> {/* Or a spinner component */}
+      <div className="flex flex-col justify-center items-center min-h-[calc(100vh-20rem)]">
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-3" />
+        <p>Loading profile...</p>
       </div>
     );
   }
@@ -81,3 +82,8 @@ export default function UserProfilePage() {
     </div>
   );
 }
+// Removed metadata export as it's not allowed in client components
+// export const metadata = {
+//   title: "User Profile",
+//   description: "Manage your MindMash user profile and settings.",
+// };
