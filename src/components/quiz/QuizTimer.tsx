@@ -18,7 +18,7 @@ export function QuizTimer({ duration, onTimeUp, isPaused = false, timerKey, comp
 
   useEffect(() => {
     setTimeLeft(duration); 
-  }, [duration, timerKey]);
+  }, [duration, timerKey]); // timerKey will ensure reset when it changes (e.g. on question change)
 
   useEffect(() => {
     if (isPaused || timeLeft <= 0) {
@@ -27,8 +27,8 @@ export function QuizTimer({ duration, onTimeUp, isPaused = false, timerKey, comp
       }
       return;
     }
-    // Only run timer if duration is positive
-    if (duration <= 0) return;
+    
+    if (duration <= 0) return; // Only run timer if duration is positive
 
 
     const intervalId = setInterval(() => {
@@ -42,11 +42,11 @@ export function QuizTimer({ duration, onTimeUp, isPaused = false, timerKey, comp
   const seconds = timeLeft % 60;
   const progressPercentage = duration > 0 ? (timeLeft / duration) * 100 : 0;
 
-  if (duration <=0 && !compact) { // If no time limit for this question (e.g. perQuestionTimeSeconds is 0 or undefined), don't show timer unless compact
+  if (duration <=0 && !compact) { 
       return <div className="text-center text-muted-foreground p-4 border rounded-lg shadow bg-card">No time limit for this question.</div>;
   }
   if (duration <=0 && compact) {
-      return null; // Don't render compact timer if no duration
+      return null; 
   }
 
 

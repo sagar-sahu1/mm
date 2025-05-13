@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuiz } from "@/contexts/QuizContext";
 import { QuizDisplay } from "@/components/quiz/QuizDisplay";
 import { QuizProgressBar } from "@/components/quiz/QuizProgressBar";
-import { QuizTimer } from "@/components/quiz/QuizTimer"; // For per-question timer
+import { QuizTimer } from "@/components/quiz/QuizTimer";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CheckSquare, Loader2, AlertTriangle, Home, TimerIcon, HelpCircleIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -33,7 +33,7 @@ export default function QuizPage() {
   // Initialize and manage overall quiz timer
   useEffect(() => {
     if (!activeQuiz || activeQuiz.completedAt || typeof activeQuiz.timeLimitMinutes !== 'number' || activeQuiz.timeLimitMinutes <= 0) {
-      setOverallTimeLeft(null); // No overall timer or quiz completed/no limit
+      setOverallTimeLeft(null); 
       return;
     }
 
@@ -80,8 +80,6 @@ export default function QuizPage() {
 
   const handlePerQuestionTimeUp = useCallback(() => {
     if (activeQuiz && !activeQuiz.completedAt) {
-      // Optionally auto-select a blank answer or specific "time up" answer
-      // answerQuestion(activeQuiz.questions[activeQuiz.currentQuestionIndex].id, ""); 
       if (activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1) {
         nextQuestion();
       } else {
@@ -92,21 +90,18 @@ export default function QuizPage() {
 
   const currentQ = activeQuiz?.questions[activeQuiz.currentQuestionIndex];
 
-  let perQuestionDuration = DEFAULT_QUIZ_TIMER_SECONDS; // Default if no quiz-specific setting
+  let perQuestionDuration = DEFAULT_QUIZ_TIMER_SECONDS; 
   if (activeQuiz) {
-      // If overall time limit is explicitly "No Time Limit" (0 minutes), then perQuestionTime is independent.
       if (activeQuiz.timeLimitMinutes === 0) { 
           perQuestionDuration = activeQuiz.perQuestionTimeSeconds !== undefined && activeQuiz.perQuestionTimeSeconds > 0 
                                   ? activeQuiz.perQuestionTimeSeconds 
-                                  : 0; // If 0 means no per-question limit when overall is also 0
+                                  : 0; 
       } 
-      // If there's an overall time limit, and perQuestionTimeSeconds is set (calculated from overall limit)
       else if (typeof activeQuiz.timeLimitMinutes === 'number' && activeQuiz.timeLimitMinutes > 0 && activeQuiz.perQuestionTimeSeconds !== undefined) {
           perQuestionDuration = activeQuiz.perQuestionTimeSeconds;
       } 
-      // Fallback if perQuestionTimeSeconds wasn't set or overall limit not applicable for this calculation
       else {
-          perQuestionDuration = 0; // Default to no per-question timer if not otherwise specified by quiz config
+          perQuestionDuration = 0; 
       }
   }
 
@@ -129,8 +124,7 @@ export default function QuizPage() {
         </CardHeader>
         <CardContent>
           <CardDescription className="text-base mb-6">
-            The quiz you are looking for could not be found, may not have loaded correctly, or the link might be incorrect.
-            Try refreshing or starting a new quiz.
+            The quiz you are looking for could not be found. Try refreshing or starting a new quiz.
           </CardDescription>
           <Button asChild>
             <Link href="/create-quiz">
@@ -151,7 +145,7 @@ export default function QuizPage() {
 
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto"> {/* Increased max-width for wider layout */}
+    <div className="space-y-6 max-w-6xl mx-auto">
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle className="text-3xl font-bold">{activeQuiz.topic} Quiz</CardTitle>
@@ -163,8 +157,8 @@ export default function QuizPage() {
       </Card>
 
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Green Box: Question Area - Left Side */}
-        <div className="lg:w-2/3 p-4 rounded-lg bg-green-500/10 border border-green-600/30 shadow-md">
+        {/* Left Panel: Question Display and Navigation */}
+        <div className="lg:w-2/3 space-y-6">
           {currentQ && (
             <QuizDisplay
               question={currentQ}
@@ -175,10 +169,53 @@ export default function QuizPage() {
               showFeedback={false} // Feedback shown on results page
             />
           )}
+          <div className="flex justify-between items-center pt-4">
+            <Button
+              onClick={previousQuestion}
+              disabled={activeQuiz.currentQuestionIndex === 0 || !!activeQuiz.completedAt}
+              variant="outline"
+              size="lg"
+            >
+              <ChevronLeft className="mr-2 h-5 w-5" /> Previous
+            </Button>
+
+            {activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1 ? (
+              <Button onClick={nextQuestion} size="lg" disabled={!!activeQuiz.completedAt || !currentQ?.userAnswer}>
+                Next <ChevronRight className="ml-2 h-5 w-5" />
+              </Button>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="default" 
+                    size="lg" 
+                    className="bg-green-600 hover:bg-green-700 text-white dark:text-primary-foreground"
+                    disabled={!!activeQuiz.completedAt || !currentQ?.userAnswer}
+                  >
+                    <CheckSquare className="mr-2 h-5 w-5" /> Submit Quiz
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Ready to submit your answers?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Once submitted, you won't be able to change your answers.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Review Answers</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSubmitQuiz} className="bg-green-600 hover:bg-green-700">
+                      Yes, Submit Quiz
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </div>
 
-        {/* Blue Box: Progress & Timer Area - Right Side */}
-        <div className="lg:w-1/3 p-4 rounded-lg bg-blue-500/10 border border-blue-600/30 shadow-md space-y-4">
+        {/* Right Panel: Quiz Status, Timers, and Progress Bar */}
+        <div className="lg:w-1/3 space-y-6 p-4 border rounded-lg shadow-md bg-card">
           <Card>
             <CardHeader>
               <CardTitle className="text-xl">Quiz Status</CardTitle>
@@ -203,20 +240,18 @@ export default function QuizPage() {
               )}
             </CardContent>
           </Card>
-
-           {/* Per-Question Timer - Moved to Blue Box (Right Panel) */}
+          
           {currentQ && perQuestionDuration > 0 && !activeQuiz?.completedAt && (
             <QuizTimer
-              timerKey={`per-q-${currentQ.id}`} // Key to reset timer on question change
+              timerKey={`per-q-${currentQ.id}-${activeQuiz.currentQuestionIndex}`} // More specific key
               duration={perQuestionDuration}
               onTimeUp={handlePerQuestionTimeUp}
               isPaused={!!activeQuiz?.completedAt}
-              compact={false} // Use the full display version for this placement
+              compact={false}
             />
           )}
-           {/* Display if no per-question time limit and not completed */}
-          {currentQ && perQuestionDuration <= 0 && !activeQuiz?.completedAt && (
-             <div className="text-center text-muted-foreground p-4 border rounded-lg shadow bg-card">No time limit for this question.</div>
+           {currentQ && perQuestionDuration <= 0 && !activeQuiz?.completedAt && (
+             <div className="text-center text-muted-foreground p-4 border rounded-lg shadow bg-muted">No time limit for this question.</div>
           )}
           
           <QuizProgressBar
@@ -226,51 +261,6 @@ export default function QuizPage() {
             isSubmittedView={!!activeQuiz.completedAt}
           />
         </div>
-      </div>
-
-      <div className="flex justify-between items-center pt-4">
-        <Button
-          onClick={previousQuestion}
-          disabled={activeQuiz.currentQuestionIndex === 0 || !!activeQuiz.completedAt}
-          variant="outline"
-          size="lg"
-        >
-          <ChevronLeft className="mr-2 h-5 w-5" /> Previous
-        </Button>
-
-        {activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1 ? (
-          <Button onClick={nextQuestion} size="lg" disabled={!!activeQuiz.completedAt || !currentQ?.userAnswer}> {/* Disable if not answered */}
-            Next <ChevronRight className="ml-2 h-5 w-5" />
-          </Button>
-        ) : (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button 
-                variant="default" 
-                size="lg" 
-                className="bg-green-600 hover:bg-green-700 text-white dark:text-primary-foreground"
-                disabled={!!activeQuiz.completedAt || !currentQ?.userAnswer} /* Disable if not answered */
-              >
-                <CheckSquare className="mr-2 h-5 w-5" /> Submit Quiz
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Ready to submit your answers?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Once submitted, you won't be able to change your answers.
-                  Your results will be calculated.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Review Answers</AlertDialogCancel>
-                <AlertDialogAction onClick={handleSubmitQuiz} className="bg-green-600 hover:bg-green-700">
-                  Yes, Submit Quiz
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
       </div>
     </div>
   );
