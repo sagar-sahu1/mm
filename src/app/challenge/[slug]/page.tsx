@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -53,6 +52,12 @@ export default function ChallengeSlugPage() {
                     duration: 5000,
                 });
                 router.push(`/login?redirect=/challenge/${slug}`);
+                return;
+            }
+
+            if (challengeData.challengerUid && currentUser.uid === challengeData.challengerUid) {
+                setError("You cannot take your own challenge. Please share this link with a friend or log in with a different account.");
+                setIsLoading(false);
                 return;
             }
 

@@ -1,4 +1,3 @@
-
 import { doc, setDoc, getDoc, serverTimestamp, type Timestamp, updateDoc, collection, query, where, getDocs, limit, orderBy, addDoc, arrayUnion, writeBatch } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase';
 import type { QuizQuestion, QuizDifficulty, UserProfileFirestoreData, UserProfile, CheatingActivityLog, ActivityType } from '@/types';
@@ -44,6 +43,12 @@ export async function addChallenge(
     isPublic: challengeDetails.isPublic || false, // Default to false if not provided
   };
 
+  // Remove undefined fields from dataToSet
+  Object.keys(dataToSet).forEach(key => {
+    if (dataToSet[key] === undefined) {
+      delete dataToSet[key];
+    }
+  });
   await setDoc(challengeRef, dataToSet);
 }
 

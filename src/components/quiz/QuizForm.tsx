@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -118,12 +117,16 @@ export function QuizForm() {
     try {
       const aiInput: GenerateQuizQuestionsInput = {
         topic: values.topic,
-        subtopic: values.subtopic,
         difficulty: values.difficulty,
         numberOfQuestions: values.numberOfQuestions,
         timeLimit: values.timeLimit,
-        additionalInstructions: values.additionalInstructions,
       };
+      if (values.subtopic && values.subtopic.trim() !== "") {
+        aiInput.subtopic = values.subtopic;
+      }
+      if (values.additionalInstructions && values.additionalInstructions.trim() !== "") {
+        aiInput.additionalInstructions = values.additionalInstructions;
+      }
       const result = await generateQuizQuestions(aiInput);
 
       if (!result.questions || result.questions.length === 0) {
@@ -143,15 +146,13 @@ export function QuizForm() {
       
       const quizId = startQuiz({
         topic: values.topic,
-        subtopic: values.subtopic,
         difficulty: values.difficulty,
         questions: quizQuestions, 
         config: aiInput, 
         challengerName: challengerName || undefined, // Kept for fulfilling challenges if navigated here with params
         timeLimit: values.timeLimit,
-        additionalInstructions: values.additionalInstructions,
-        // isPublic: values.isPublic, // isPublic removed from form values
-        // For self-taken quizzes, isPublic will default to false or be omitted in startQuiz if not provided
+        ...(values.subtopic && values.subtopic.trim() !== "" ? { subtopic: values.subtopic } : {}),
+        ...(values.additionalInstructions && values.additionalInstructions.trim() !== "" ? { additionalInstructions: values.additionalInstructions } : {}),
       });
 
       toast({

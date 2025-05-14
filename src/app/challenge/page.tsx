@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -22,6 +21,7 @@ import { generateQuizQuestions, type GenerateQuizQuestionsInput, type QuizQuesti
 import { addChallenge } from '@/lib/firestoreUtils';
 import type { QuizQuestion } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+import Link from 'next/link';
 
 const challengeFormSchema = z.object({
   topic: z.string().min(2, "Topic must be at least 2 characters.").max(100, "Topic too long."),
@@ -42,6 +42,7 @@ export default function ChallengePage() {
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -80,12 +81,16 @@ export default function ChallengePage() {
     try {
       const aiInput: GenerateQuizQuestionsInput = {
         topic: values.topic,
-        subtopic: values.subtopic,
         difficulty: values.difficulty,
         numberOfQuestions: values.numberOfQuestions,
         timeLimit: values.timeLimit,
-        additionalInstructions: values.additionalInstructions,
       };
+      if (values.subtopic && values.subtopic.trim() !== "") {
+        aiInput.subtopic = values.subtopic;
+      }
+      if (values.additionalInstructions && values.additionalInstructions.trim() !== "") {
+        aiInput.additionalInstructions = values.additionalInstructions;
+      }
       const result = await generateQuizQuestions(aiInput);
 
       if (result.questions && result.questions.length > 0) {
@@ -100,14 +105,14 @@ export default function ChallengePage() {
         
         await addChallenge({
           topic: values.topic,
-          subtopic: values.subtopic,
           difficulty: values.difficulty,
           numberOfQuestions: values.numberOfQuestions,
           timeLimit: values.timeLimit,
-          additionalInstructions: values.additionalInstructions,
           questions: challengeQuestions,
           challengerUid: currentUser.uid,
           challengerName: currentUser.displayName || currentUser.email || "A friend",
+          ...(values.subtopic && values.subtopic.trim() !== "" ? { subtopic: values.subtopic } : {}),
+          ...(values.additionalInstructions && values.additionalInstructions.trim() !== "" ? { additionalInstructions: values.additionalInstructions } : {}),
         }, slug);
 
         const link = `${window.location.origin}/challenge/${slug}`;
@@ -119,9 +124,13 @@ export default function ChallengePage() {
       }
     } catch (error) {
       console.error("Error generating challenge:", error);
+      let description = error instanceof Error ? error.message : "Could not generate challenge. Please try again.";
+      if (description.includes('503') || description.toLowerCase().includes('overloaded')) {
+        description = "The AI model is currently overloaded. Please try again in a few minutes.";
+      }
       toast({
         title: "Uh oh! Something went wrong.",
-        description: error instanceof Error ? error.message : "Could not generate challenge. Please try again.",
+        description,
         variant: "destructive",
       });
     } finally {
@@ -131,15 +140,33 @@ export default function ChallengePage() {
 
   const handleCopyLink = () => {
     if (generatedLink) {
-      navigator.clipboard.writeText(generatedLink)
-        .then(() => {
-          setCopied(true);
-          toast({ title: "Link Copied!", description: "Challenge link copied to clipboard." });
-          setTimeout(() => setCopied(false), 2000);
-        })
-        .catch(() => {
-          toast({ title: "Copy Failed", description: "Could not copy link. Please try manually.", variant: "destructive" });
-        });
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(generatedLink)
+          .then(() => {
+            setCopied(true);
+            toast({ title: "Link Copied!", description: "Challenge link copied to clipboard." });
+            setTimeout(() => setCopied(false), 2000);
+          })
+          .catch(() => {
+            if (inputRef.current) {
+              inputRef.current.select();
+              document.execCommand('copy');
+              setCopied(true);
+              toast({ title: "Link Copied!", description: "Challenge link copied to clipboard." });
+              setTimeout(() => setCopied(false), 2000);
+            } else {
+              toast({ title: "Copy Failed", description: "Could not copy link. Please try manually.", variant: "destructive" });
+            }
+          });
+      } else if (inputRef.current) {
+        inputRef.current.select();
+        document.execCommand('copy');
+        setCopied(true);
+        toast({ title: "Link Copied!", description: "Challenge link copied to clipboard." });
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        toast({ title: "Copy Failed", description: "Could not copy link. Please try manually.", variant: "destructive" });
+      }
     }
   };
 
@@ -332,7 +359,7 @@ export default function ChallengePage() {
             <div className="mt-8 p-4 border rounded-md bg-muted/50">
               <Label htmlFor="challenge-link" className="text-base font-semibold">Your Challenge Link:</Label>
               <div className="flex items-center gap-2 mt-2">
-                <Input id="challenge-link" type="text" value={generatedLink} readOnly className="text-sm bg-background" />
+                <Input id="challenge-link" type="text" value={generatedLink} readOnly className="text-sm bg-background" ref={inputRef} />
                 <Button onClick={handleCopyLink} variant="outline" size="icon" aria-label="Copy link">
                   {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                 </Button>

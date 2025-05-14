@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -15,6 +14,7 @@ import { LoginStreakDisplay } from '@/components/dashboard/LoginStreakDisplay';
 // QuizDifficultyPieChart import removed
 import { getUniqueLoginDates, calculateUserLoginStreak, getWeeklyLoginStatus } from '@/lib/firestoreUtils';
 import { QUIZ_DIFFICULTY_LEVELS } from '@/lib/constants';
+import { Input } from '@/components/ui/input';
 
 export default function DashboardPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -25,6 +25,7 @@ export default function DashboardPage() {
   const [loginStreak, setLoginStreak] = useState(0);
   const [weeklyStatus, setWeeklyStatus] = useState<boolean[]>(Array(7).fill(false));
   const [isStreakLoading, setIsStreakLoading] = useState(true);
+  const [challengeInput, setChallengeInput] = useState("");
 
   useEffect(() => {
     setIsClient(true);
@@ -49,6 +50,23 @@ export default function DashboardPage() {
         .finally(() => setIsStreakLoading(false));
     }
   }, [currentUser, isClient]);
+
+  const handleAcceptChallenge = () => {
+    // Accepts either a full link or just the slug
+    let slug = challengeInput.trim();
+    if (slug.startsWith("http")) {
+      try {
+        const url = new URL(slug);
+        const parts = url.pathname.split("/");
+        slug = parts[parts.length - 1] || parts[parts.length - 2];
+      } catch {
+        // fallback: do nothing
+      }
+    }
+    if (slug) {
+      router.push(`/challenge/${slug}`);
+    }
+  };
 
   if (!isClient || authLoading || !currentUser) {
     return (
@@ -158,6 +176,30 @@ export default function DashboardPage() {
             </Link>
           </Button>
         </CardFooter>
+      </Card>
+
+      <Card className="shadow-xl">
+        <CardHeader>
+          <CardTitle className="text-2xl font-semibold">Accept a Challenge</CardTitle>
+          <CardDescription>Paste a challenge link or code below to accept a quiz challenge from a friend.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row gap-4 items-center">
+          <Input
+            type="text"
+            placeholder="Paste challenge link or code here..."
+            value={challengeInput}
+            onChange={e => setChallengeInput(e.target.value)}
+            className="w-full md:w-2/3"
+          />
+          <Button
+            onClick={handleAcceptChallenge}
+            size="lg"
+            className="w-full md:w-auto"
+            disabled={!challengeInput.trim()}
+          >
+            Accept
+          </Button>
+        </CardContent>
       </Card>
     </div>
   );
