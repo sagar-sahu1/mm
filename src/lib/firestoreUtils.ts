@@ -21,28 +21,28 @@ export interface ChallengeData {
 
 
 export async function addChallenge(
-  challengeDetails: Omit<ChallengeData, 'createdAt' | 'slug' | 'questions'> & { questions: QuizQuestion[] }, // Ensure questions is part of input details
+  challengeDetails: Omit<ChallengeData, 'createdAt' | 'slug' | 'questions'> & { questions: QuizQuestion[] },
   slug: string
 ): Promise<void> {
   const db = getDb();
   const challengeRef = doc(db, 'challenges', slug);
   
+  // Base structure for ChallengeData excluding optional fields initially
   const dataToSet: Omit<ChallengeData, 'createdAt' | 'slug'> & { slug: string; createdAt: Timestamp } = {
     topic: challengeDetails.topic,
     difficulty: challengeDetails.difficulty,
     numberOfQuestions: challengeDetails.numberOfQuestions,
     questions: challengeDetails.questions,
     challengerUid: challengeDetails.challengerUid,
-    slug: slug,
-    createdAt: serverTimestamp() as Timestamp, 
+    slug: slug, // ensure slug is part of the data being set
+    createdAt: serverTimestamp() as Timestamp, // Firestore will set this on the server
+    // Explicitly include all expected fields, defaulting if necessary or omitting if truly optional
+    subtopic: challengeDetails.subtopic || undefined,
+    timeLimit: challengeDetails.timeLimit !== undefined ? challengeDetails.timeLimit : undefined,
+    additionalInstructions: challengeDetails.additionalInstructions || undefined,
+    challengerName: challengeDetails.challengerName || undefined,
+    isPublic: challengeDetails.isPublic || false, // Default to false if not provided
   };
-
-  if (challengeDetails.subtopic) dataToSet.subtopic = challengeDetails.subtopic;
-  if (challengeDetails.timeLimit !== undefined) dataToSet.timeLimit = challengeDetails.timeLimit; 
-  if (challengeDetails.additionalInstructions) dataToSet.additionalInstructions = challengeDetails.additionalInstructions;
-  if (challengeDetails.challengerName) dataToSet.challengerName = challengeDetails.challengerName;
-  if (challengeDetails.isPublic !== undefined) dataToSet.isPublic = challengeDetails.isPublic;
-
 
   await setDoc(challengeRef, dataToSet);
 }
@@ -54,8 +54,9 @@ export async function getChallengeBySlug(slug: string): Promise<ChallengeData | 
 
   if (challengeSnap.exists()) {
     const data = challengeSnap.data();
+    // Ensure all fields from ChallengeData are mapped, even if they might be undefined in Firestore
     return {
-        slug: data.slug,
+        slug: data.slug, // slug is part of the document ID, but also stored in the document
         topic: data.topic,
         subtopic: data.subtopic, 
         difficulty: data.difficulty,
@@ -127,7 +128,7 @@ export async function getLeaderboardUsers(limitCount: number = 10): Promise<User
     usersRef, 
     orderBy('totalScore', 'desc'), 
     orderBy('quizzesCompleted', 'desc'), 
-    orderBy('__name__', 'asc'), 
+    orderBy('__name__', 'asc'), // Use document ID for tie-breaking
     limit(limitCount)
   );
 
@@ -181,7 +182,7 @@ export async function recordUserLogin(uid: string): Promise<void> {
       loginHistory = userData.loginHistory || [];
       if (!loginHistory.includes(todayStr)) {
         loginHistory.push(todayStr);
-        loginHistory.sort(); 
+        loginHistory.sort(); // Keep it sorted for easier processing if needed, though Set handles uniqueness
       }
 
       const currentStreak = userData.currentStreak || 0;
@@ -192,16 +193,22 @@ export async function recordUserLogin(uid: string): Promise<void> {
         if (lastStreakLogin === yesterdayStr) {
           newStreak = currentStreak + 1;
         } else if (lastStreakLogin === todayStr) {
-          newStreak = currentStreak; 
+          newStreak = currentStreak; // Already logged in today, streak doesn't change
         } else {
-          newStreak = 1; 
+          newStreak = 1; // Streak broken
         }
       } else {
-        newStreak = 1; 
+        newStreak = 1; // First login or first login after a long time
       }
     } else {
+      // This case should ideally not happen if createUserProfileDocument is called on signup.
+      // However, as a fallback or for users created before this logic:
       console.warn(`User document for UID ${uid} not found during login recording. Creating one if auth user exists.`);
-      const currentUserForFallback = auth.currentUser; // Ensure auth is available
+      // To prevent errors, we might try to create a minimal profile here or log an error
+      // For now, we'll assume profile exists or is created at signup.
+      // If you want to create it here, you'd need access to the auth user object.
+      const auth = (await import('@/lib/firebase')).auth; // Dynamically import to avoid circular deps if any
+      const currentUserForFallback = auth.currentUser;
       if (currentUserForFallback) {
          const initialData: Partial<UserProfileFirestoreData> = {
           email: currentUserForFallback.email || undefined,
@@ -214,15 +221,19 @@ export async function recordUserLogin(uid: string): Promise<void> {
           updatedAt: serverTimestamp() as Timestamp,
           totalScore: 0,
           quizzesCompleted: 0,
+          // Default other fields as in createUserProfileDocument
           bio: '',
-          birthdate: format(new Date(), 'yyyy-MM-dd'),
+          birthdate: format(new Date(), 'yyyy-MM-dd'), // Default birthdate
         };
         await setDoc(userRef, initialData);
       }
-      return; 
+      // Since profile was just created or is missing, this login attempt is the start of a streak
+      // The logic below will handle the update.
+      return; // Exit early as we've just set initial values or if user doesn't exist
     }
     
-    if (loginHistory.length > 550) {
+    // Limit login history size to prevent excessively large documents
+    if (loginHistory.length > 550) { // Approx 1.5 years of daily logins
       loginHistory = loginHistory.slice(loginHistory.length - 550);
     }
 
@@ -242,35 +253,32 @@ export async function recordUserLogin(uid: string): Promise<void> {
 export async function getUniqueLoginDates(uid: string): Promise<string[]> {
   const userProfile = await getUserProfile(uid);
   if (userProfile && userProfile.loginHistory) {
-    return userProfile.loginHistory.sort(); 
+    // Ensure dates are unique and sorted, though recordUserLogin tries to maintain this.
+    return [...new Set(userProfile.loginHistory)].sort(); 
   }
   return [];
 }
 
 
-export async function getUserLoginActivityForYear(uid: string, year: number): Promise<CheatingActivityLog[]> { // Changed return type
+// Updated to return UserActivityLog typed objects for consistency, though it's login history
+export async function getUserLoginActivityForYear(uid: string, year: number): Promise<CheatingActivityLog[]> { 
   const userProfile = await getUserProfile(uid);
   if (!userProfile || !userProfile.loginHistory) {
     return [];
   }
 
-  const activities: CheatingActivityLog[] = []; // Changed type
+  const activities: CheatingActivityLog[] = [];
   userProfile.loginHistory.forEach(dateStr => {
     try {
-      const loginDate = parseISO(dateStr); 
+      const loginDate = parseISO(dateStr); // parseISO is robust for 'yyyy-MM-dd'
       if (loginDate.getFullYear() === year) {
-        // This function is for heatmap, it assumes each entry in loginHistory is a unique login day.
-        // For the CheatingActivityLog type, activityType is mandatory.
-        // This function might need renaming or refactoring if it's specifically for login heatmap
-        // vs generic activity logs. For now, let's assume it's just transforming loginHistory for heatmap.
         activities.push({
-          userId: uid, // Changed from uid
-          quizId: 'N/A_login_activity', // Placeholder as quizId is not relevant for general login
-          activityType: 'tab_switch', // Placeholder, this function is for login history, not specific cheating types
-          date: dateStr,
-          timestamp: Timestamp.fromDate(loginDate), 
-          // count: 1, // CheatingActivityLog doesn't have count, it represents one event
-        } as unknown as CheatingActivityLog); // Casting as activityType is required
+          userId: uid,
+          quizId: 'login_activity', // Generic quizId for login events
+          activityType: 'login' as ActivityType, // Use a generic type or cast if needed
+          timestamp: Timestamp.fromDate(loginDate), // Convert Date to Firestore Timestamp
+          details: `Logged in on ${dateStr}`,
+        } as CheatingActivityLog); // Cast to CheatingActivityLog if 'login' is not a standard ActivityType
       }
     } catch (e) {
       console.warn(`Could not parse date string ${dateStr} from loginHistory for user ${uid}`);
@@ -285,53 +293,49 @@ export function calculateUserLoginStreak(uniqueLoginDates: string[]): number {
     return 0;
   }
   
-  const sortedDates = [...new Set(uniqueLoginDates)].map(d => parseISO(d)).sort((a,b) => a.getTime() - b.getTime());
+  // Ensure dates are Date objects, unique, and sorted
+  const sortedDates = [...new Set(uniqueLoginDates.map(d => parseISO(d)))]
+    .filter(d => !isNaN(d.getTime())) // Filter out invalid dates from parseISO
+    .sort((a,b) => a.getTime() - b.getTime());
 
   if (sortedDates.length === 0) return 0;
 
   const today = new Date();
   today.setHours(0,0,0,0); 
 
-  const lastLoginDate = sortedDates[sortedDates.length - 1];
+  const lastLoginDate = new Date(sortedDates[sortedDates.length - 1]);
   lastLoginDate.setHours(0,0,0,0);
 
+  // If last login was before yesterday, streak is 0
   if (differenceInDays(today, lastLoginDate) > 1) {
     return 0; 
   }
 
   let currentStreak = 0;
+  // Iterate backwards from the last logged date
   for (let i = sortedDates.length - 1; i >= 0; i--) {
-    const dateToCheck = new Date(sortedDates[i]);
-    dateToCheck.setHours(0,0,0,0);
+    const currentDate = new Date(sortedDates[i]);
+    currentDate.setHours(0,0,0,0);
     
-    const expectedPreviousDate = subDays( (i === sortedDates.length - 1) ? today : new Date(sortedDates[i+1]), 1);
-    expectedPreviousDate.setHours(0,0,0,0);
+    // The date we expect for a continuous streak, relative to 'today' or the next date in sequence
+    const expectedDate = subDays( (i === sortedDates.length - 1) ? today : new Date(sortedDates[i+1]), 1);
+    expectedDate.setHours(0,0,0,0);
 
-    if (isEqual(dateToCheck, expectedPreviousDate) || (i === sortedDates.length -1 && isEqual(dateToCheck, today))) {
+    if (isEqual(currentDate, expectedDate)) {
         currentStreak++;
-    } else if (i === sortedDates.length -1 && isEqual(dateToCheck, subDays(today,1))) { 
+    } else if (i === sortedDates.length -1 && isEqual(currentDate, today)) { // Last login is today
         currentStreak++;
-    }
-     else {
+    } else {
+      // Streak is broken if the current date doesn't match the expected previous date
       break; 
     }
   }
   
-  const todayStr = format(today, 'yyyy-MM-dd');
-  if (!uniqueLoginDates.includes(todayStr) && isEqual(lastLoginDate, subDays(today, 1)) && currentStreak === 1){
-      // This case means they logged in yesterday, but not today, and yesterday was the start of a new streak.
-      // So currentStreak should be 0.
-      // However, if lastLoginDate is today, and uniqueLoginDates.includes(todayStr) is true, currentStreak should be at least 1.
-      // The calculateUserLoginStreak logic needs to be robust for this.
-      // If the last login was yesterday, and they didn't log in today, streak is 0.
-      // The current logic might count yesterday as 1.
-      // Let's re-evaluate: if today is not in uniqueLoginDates and lastLoginDate is yesterday, streak is 0.
-      // This is already covered by the first check: `differenceInDays(today, lastLoginDate) > 1` would be false.
-      // And `differenceInDays(today, lastLoginDate) === 1` means streak is 0 if today is not logged.
-      // The loop correctly builds the streak from the *last logged day*.
-      // If the last logged day is *not* today or yesterday, the streak is 0.
-  }
-
+  // If the very last login date in the sorted list is today, but it wasn't part of a sequence from yesterday,
+  // the streak is 1. If it was yesterday, and today is not logged, streak is 0.
+  // The loop handles building the streak correctly from the latest logged dates.
+  // If the latest login is today, and it's the only one, streak is 1.
+  // If latest is yesterday, and no login today, streak is 0 (covered by initial check).
 
   return currentStreak;
 }
@@ -349,14 +353,16 @@ export function getWeeklyLoginStatus(uniqueLoginDates: string[], referenceDate: 
   const loginSet = new Set(uniqueLoginDates.map(dateStr => {
      try {
       const dateObj = parseISO(dateStr); 
-      if (isNaN(dateObj.getTime())) {
+      if (isNaN(dateObj.getTime())) { // Check if date is valid after parsing
+        console.warn(`Invalid date string encountered in login history: ${dateStr}`);
         return null;
       }
       return format(dateObj, 'yyyy-MM-dd');
     } catch (e) {
+      console.warn(`Error parsing date string ${dateStr}:`, e);
       return null;
     }
-  }).filter(date => date !== null));
+  }).filter(date => date !== null) as Set<string>); // Ensure we have a Set of valid strings
 
 
   const weeklyStatus = weekDays.map(day => {
@@ -386,11 +392,18 @@ export async function logCheatingActivity(
     const docRef = await addDoc(collection(db, 'cheating_logs'), logEntry);
     
     // Update cheatingFlags count on the quiz document
-    const quizRef = doc(db, 'quizzes', quizId);
-    const quizSnap = await getDoc(quizRef);
+    // This part assumes quizzes are stored in a 'quizzes' collection at the root
+    // And that the quiz document has a 'cheatingFlags' field.
+    // This might need adjustment if quizzes are stored within user documents or elsewhere.
+    // For now, assuming a root 'quizzes' collection for simplicity.
+    // This is also a client-side update pattern; for security/atomicity, a Firebase Function is better.
+    const quizDocRef = doc(db, 'quizzes', quizId); // Assumes 'quizzes' is a top-level collection.
+    const quizSnap = await getDoc(quizDocRef);
     if (quizSnap.exists()) {
-      const currentFlags = quizSnap.data().cheatingFlags || 0;
-      await updateDoc(quizRef, { cheatingFlags: currentFlags + 1 });
+      const currentFlags = (quizSnap.data() as any).cheatingFlags || 0; // Type assertion needed if Quiz type not fully known here
+      await updateDoc(quizDocRef, { cheatingFlags: currentFlags + 1 });
+    } else {
+      console.warn(`Quiz document ${quizId} not found to update cheating flags.`);
     }
     
     return docRef.id;
@@ -414,9 +427,12 @@ export async function getCheatingFlagsForQuiz(quizId: string, userId: string): P
     return flags;
   } catch (error) {
     console.error("Error fetching cheating flags:", error);
+    if (error instanceof Error && (error.message.includes('firestore/indexes') || ((error as any).code === 'failed-precondition' && error.message.includes('query requires an index')))) {
+       console.warn("Firestore index missing for getCheatingFlagsForQuiz query. Please create the required composite index in your Firebase console. Index: 'cheating_logs' collection, where 'quizId' == ?, where 'userId' == ?, order by 'timestamp' (asc).");
+    }
     return [];
   }
 }
 
 
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase'; // Ensure auth is imported if needed for fallbacks

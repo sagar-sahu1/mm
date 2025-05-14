@@ -9,13 +9,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Loader2, Link2Icon, Copy, Check, AlertTriangle } from 'lucide-react';
-import { QUIZ_DIFFICULTY_LEVELS, DEFAULT_NUMBER_OF_QUESTIONS, MIN_QUESTIONS, MAX_QUESTIONS, type QuizDifficulty } from "@/lib/constants";
+import { QUIZ_DIFFICULTY_LEVELS, DEFAULT_NUMBER_OF_QUESTIONS, MIN_QUESTIONS, MAX_QUESTIONS, NUMBER_OF_QUESTIONS_OPTIONS, TIME_LIMIT_OPTIONS, type QuizDifficulty } from "@/lib/constants";
 import { useToast } from '@/hooks/use-toast';
 import { generateQuizQuestions, type GenerateQuizQuestionsInput, type QuizQuestion as GenAIQuizQuestion } from '@/ai/flows/generate-quiz-questions';
 import { addChallenge } from '@/lib/firestoreUtils';
@@ -24,8 +25,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 const challengeFormSchema = z.object({
   topic: z.string().min(2, "Topic must be at least 2 characters.").max(100, "Topic too long."),
+  subtopic: z.string().max(100, "Subtopic too long.").optional(),
   difficulty: z.enum(QUIZ_DIFFICULTY_LEVELS.map(level => level.value) as [QuizDifficulty, ...QuizDifficulty[]]),
-  numberOfQuestions: z.number().min(MIN_QUESTIONS).max(MAX_QUESTIONS),
+  numberOfQuestions: z.coerce.number().min(MIN_QUESTIONS).max(MAX_QUESTIONS),
+  timeLimit: z.coerce.number().optional(),
+  additionalInstructions: z.string().max(500, "Instructions too long.").optional(),
 });
 
 type ChallengeFormValues = z.infer<typeof challengeFormSchema>;
@@ -53,8 +57,11 @@ export default function ChallengePage() {
     resolver: zodResolver(challengeFormSchema),
     defaultValues: {
       topic: "",
+      subtopic: "",
       difficulty: "medium",
       numberOfQuestions: DEFAULT_NUMBER_OF_QUESTIONS,
+      timeLimit: 15, // Default time limit, e.g., 15 minutes
+      additionalInstructions: "",
     },
   });
 
@@ -73,16 +80,19 @@ export default function ChallengePage() {
     try {
       const aiInput: GenerateQuizQuestionsInput = {
         topic: values.topic,
+        subtopic: values.subtopic,
         difficulty: values.difficulty,
         numberOfQuestions: values.numberOfQuestions,
+        timeLimit: values.timeLimit,
+        additionalInstructions: values.additionalInstructions,
       };
       const result = await generateQuizQuestions(aiInput);
 
       if (result.questions && result.questions.length > 0) {
-        const slug = uuidv4().slice(0, 8); // Use a shorter UUID for the slug
+        const slug = uuidv4().slice(0, 8); 
         
         const challengeQuestions: QuizQuestion[] = result.questions.map((q: GenAIQuizQuestion) => ({
-          id: uuidv4(), // Each question within the challenge gets a unique ID
+          id: uuidv4(),
           question: q.question,
           options: q.options,
           correctAnswer: q.correctAnswer,
@@ -90,8 +100,11 @@ export default function ChallengePage() {
         
         await addChallenge({
           topic: values.topic,
+          subtopic: values.subtopic,
           difficulty: values.difficulty,
           numberOfQuestions: values.numberOfQuestions,
+          timeLimit: values.timeLimit,
+          additionalInstructions: values.additionalInstructions,
           questions: challengeQuestions,
           challengerUid: currentUser.uid,
           challengerName: currentUser.displayName || currentUser.email || "A friend",
@@ -195,6 +208,21 @@ export default function ChallengePage() {
                 )}
               />
 
+              <FormField
+                control={form.control}
+                name="subtopic"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg">Specific Subtopic (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Planets, Renaissance Art" {...field} className="text-base py-6"/>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+
               <div className="grid md:grid-cols-2 gap-8">
                 <FormField
                   control={form.control}
@@ -226,22 +254,66 @@ export default function ChallengePage() {
                   name="numberOfQuestions"
                   render={({ field: { value, onChange } }) => (
                     <FormItem>
-                      <FormLabel className="text-lg">Number of Questions: {value}</FormLabel>
-                      <FormControl>
-                        <Slider
-                          min={MIN_QUESTIONS}
-                          max={MAX_QUESTIONS}
-                          step={1}
-                          defaultValue={[value ?? DEFAULT_NUMBER_OF_QUESTIONS]}
-                          onValueChange={(vals) => onChange(vals[0])}
-                          className="py-3"
-                        />
-                      </FormControl>
+                       <FormLabel className="text-lg">Number of Questions: {form.watch('numberOfQuestions')}</FormLabel> {/* Use form.watch to display slider value */}
+                        <FormControl>
+                            <Slider
+                            min={MIN_QUESTIONS}
+                            max={MAX_QUESTIONS}
+                            step={1}
+                            defaultValue={[value ?? DEFAULT_NUMBER_OF_QUESTIONS]}
+                            onValueChange={(vals) => onChange(vals[0])}
+                            className="py-3"
+                            />
+                        </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="timeLimit"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="text-lg">Time Limit (minutes)</FormLabel>
+                        <Select onValueChange={(val) => field.onChange(val ? parseInt(val) : undefined)} defaultValue={field.value !== undefined ? String(field.value) : undefined}>
+                            <FormControl>
+                                <SelectTrigger className="text-base py-6">
+                                    <SelectValue placeholder="Select time limit" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="0" className="text-base">No Time Limit</SelectItem>
+                                {TIME_LIMIT_OPTIONS.map((option) => (
+                                    <SelectItem key={option.value} value={String(option.value)} className="text-base">
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="additionalInstructions"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="text-lg">Additional Instructions (Optional)</FormLabel>
+                        <FormControl>
+                            <Textarea
+                                placeholder="Any specific requirements for your quiz? E.g., 'Include code snippets', 'Focus on practical applications'"
+                                className="resize-y min-h-[100px] text-base p-4"
+                                {...field}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+              />
               
               <Button type="submit" size="lg" className="w-full md:w-auto text-lg py-6 shadow-md" disabled={isSubmitting}>
                 {isSubmitting ? (
@@ -273,4 +345,3 @@ export default function ChallengePage() {
     </div>
   );
 }
-
