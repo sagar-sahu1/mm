@@ -7,13 +7,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuiz } from '@/contexts/QuizContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, UserCircle, ListChecks, Lightbulb, Link2, CalendarDays, BarChartHorizontalBig } from 'lucide-react';
-import type { Quiz, QuizDifficulty } from '@/types';
-import { ActivityHeatmap } from '@/components/dashboard/ActivityHeatmap';
+import { Loader2, UserCircle, ListChecks, Lightbulb, Link2 } from 'lucide-react';
+import type { Quiz } from '@/types';
 import { LoginStreakDisplay } from '@/components/dashboard/LoginStreakDisplay';
-// QuizDifficultyPieChart import removed
 import { getUniqueLoginDates, calculateUserLoginStreak, getWeeklyLoginStatus } from '@/lib/firestoreUtils';
-import { QUIZ_DIFFICULTY_LEVELS } from '@/lib/constants';
 import { Input } from '@/components/ui/input';
 
 export default function DashboardPage() {
@@ -89,8 +86,6 @@ export default function DashboardPage() {
 
   const uniqueTopicsExplored = new Set(completedQuizzes.map(quiz => quiz.topic.toLowerCase())).size;
 
-  // difficultyDistribution logic removed as pie chart is removed
-
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <Card className="shadow-xl">
@@ -137,23 +132,6 @@ export default function DashboardPage() {
            )}
         </CardContent>
       </Card>
-
-      {/* Layout adjusted as PieChart is removed */}
-      <Card className="shadow-xl h-full">
-        <CardHeader>
-          <CardTitle className="text-2xl font-semibold flex items-center">
-            <CalendarDays className="mr-3 h-7 w-7 text-primary" />
-            Your Login Activity
-          </CardTitle>
-          <CardDescription>
-            Heatmap of your login activity over the past year.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-4 md:p-6">
-          {currentUser && <ActivityHeatmap userId={currentUser.uid} />}
-        </CardContent>
-      </Card>
-
 
       <Card className="shadow-xl">
         <CardHeader>

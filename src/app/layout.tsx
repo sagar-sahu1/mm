@@ -1,6 +1,5 @@
-
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Outfit, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { Toaster } from '@/components/ui/toaster';
@@ -12,14 +11,20 @@ import { QuizProvider } from '@/contexts/QuizContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ClientAnalyticsInitializer } from '@/components/layout/ClientAnalyticsInitializer';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+// Configure Playfair Display as primary font
+const playfair = Playfair_Display({
   subsets: ['latin'],
+  variable: '--font-primary',
+  display: 'swap',
+  weight: ['400', '500', '700'],
 });
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+// Configure Outfit as secondary font
+const outfit = Outfit({
   subsets: ['latin'],
+  variable: '--font-secondary',
+  display: 'swap',
+  weight: ['400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
@@ -52,7 +57,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
+      <body className={`${playfair.variable} ${outfit.variable} antialiased flex flex-col min-h-screen`}>
         <ThemeProvider
           defaultTheme="system"
           storageKey="mindmash-theme"

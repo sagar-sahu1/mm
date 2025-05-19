@@ -1,11 +1,10 @@
-
 "use client";
 
 import type { ReactNode } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 
-type Theme = "light" | "dark" | "system";
+export type Theme = "light" | "dark" | "system";
 type AccessibilitySettings = {
   largeText: boolean;
   highContrast: boolean;

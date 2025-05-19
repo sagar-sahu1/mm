@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -13,7 +12,9 @@ import {
   LayoutDashboard, 
   Lightbulb,
   Home,
-  BarChart3 // Added BarChart3 for Leaderboard
+  BarChart3,
+  GraduationCap,
+  ListChecks
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -31,27 +32,39 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 max-w-screen-2xl items-center justify-between">
+      <div className="container flex h-16 items-center justify-between px-4">
         <Link href="/" className="flex items-center space-x-2">
-          <BrainCircuit className="h-6 w-6 text-primary" />
+          <GraduationCap className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg">{siteConfig.name}</span>
         </Link>
-        <nav className="flex items-center space-x-1 sm:space-x-2">
-          <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
+        <nav className="flex items-center space-x-2 sm:space-x-4">
+          <Button asChild variant="ghost" size="sm">
             <Link href="/" className="flex items-center">
-              <Home className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
+              <Home className="mr-2 h-4 w-4" />
               Home
             </Link>
           </Button>
-          <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
+          <Button asChild variant="ghost" size="sm">
             <Link href="/create-quiz" className="flex items-center">
-              <Lightbulb className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
+              <Lightbulb className="mr-2 h-4 w-4" />
               Create Quiz
             </Link>
           </Button>
-          <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/dashboard" className="flex items-center">
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+              Dashboard
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/history" className="flex items-center">
+              <ListChecks className="mr-2 h-4 w-4" />
+              Quiz History
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
             <Link href="/leaderboard" className="flex items-center">
-              <BarChart3 className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
+              <BarChart3 className="mr-2 h-4 w-4" />
               Leaderboard
             </Link>
           </Button>
@@ -62,7 +75,7 @@ export function Header() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full">
-                       <Avatar className="h-8 w-8">
+                      <Avatar className="h-8 w-8">
                         <AvatarImage src={currentUser.photoURL || undefined} alt={currentUser.displayName || currentUser.email || "User"} />
                         <AvatarFallback>
                           <UserCircle className="h-6 w-6" />
@@ -71,17 +84,22 @@ export function Header() {
                       <span className="sr-only">Open user menu</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>{currentUser.displayName || currentUser.email}</DropdownMenuLabel>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{currentUser.displayName || currentUser.email}</p>
+                        <p className="text-xs leading-none text-muted-foreground">{currentUser.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href="/profile" className="flex items-center w-full">
+                      <Link href="/profile" className="flex items-center w-full cursor-pointer">
                         <UserCircle className="mr-2 h-4 w-4" />
                         Profile
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/dashboard" className="flex items-center w-full">
+                      <Link href="/dashboard" className="flex items-center w-full cursor-pointer">
                         <LayoutDashboard className="mr-2 h-4 w-4" />
                         Dashboard
                       </Link>
@@ -95,15 +113,15 @@ export function Header() {
                 </DropdownMenu>
               ) : (
                 <>
-                  <Button asChild variant="ghost" size="sm" className="text-xs sm:text-sm">
+                  <Button asChild variant="ghost" size="sm">
                     <Link href="/login" className="flex items-center">
-                      <LogIn className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
+                      <LogIn className="mr-2 h-4 w-4" />
                       Login
                     </Link>
                   </Button>
-                  <Button asChild variant="default" size="sm" className="text-xs sm:text-sm">
+                  <Button asChild variant="default" size="sm">
                     <Link href="/signup" className="flex items-center">
-                       <UserPlus className="mr-1 h-4 w-4 sm:mr-2 sm:h-5 sm:w-5" />
+                      <UserPlus className="mr-2 h-4 w-4" />
                       Sign Up
                     </Link>
                   </Button>
@@ -111,9 +129,9 @@ export function Header() {
               )}
             </>
           )}
-           {loading && (
-             <div className="flex items-center space-x-2">
-                <div className="h-8 w-8 animate-pulse rounded-full bg-muted-foreground/50"></div>
+          {loading && (
+            <div className="flex items-center space-x-2">
+              <div className="h-8 w-8 animate-pulse rounded-full bg-muted-foreground/50"></div>
             </div>
           )}
         </nav>

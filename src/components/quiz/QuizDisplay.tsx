@@ -28,6 +28,9 @@ interface QuizDisplayProps {
   perQuestionDuration: number; 
   onPerQuestionTimeUp: () => void;
   timerKey: string | number; 
+  speakQuestion: () => void;
+  isSpeaking: boolean;
+  isTextToSpeechEnabled: boolean;
 }
 
 export function QuizDisplay({ 
@@ -38,34 +41,18 @@ export function QuizDisplay({
   perQuestionDuration,
   onPerQuestionTimeUp,
   timerKey,
+  speakQuestion,
+  isSpeaking,
+  isTextToSpeechEnabled,
 }: QuizDisplayProps) {
   const [selectedValue, setSelectedValue] = useState<string | undefined>(question.userAnswer);
   const { activeQuiz } = useQuiz(); 
   const { accessibility } = useTheme();
   const { toast } = useToast();
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-
 
   useEffect(() => {
     setSelectedValue(question.userAnswer);
-    if (window.speechSynthesis && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      utteranceRef.current = null; 
-    }
   }, [question.id, question.userAnswer]);
-
-  useEffect(() => {
-    return () => {
-      if (window.speechSynthesis && window.speechSynthesis.speaking && utteranceRef.current) {
-        window.speechSynthesis.cancel();
-      }
-      setIsSpeaking(false);
-      utteranceRef.current = null;
-    };
-  }, []);
-
 
   const handleValueChange = (value: string) => {
     if (isSubmitted || activeQuiz?.completedAt) return; 
@@ -87,61 +74,6 @@ export function QuizDisplay({
     return null;
   }
 
-  const handleSpeak = () => {
-    if (!accessibility.textToSpeech || !question.question) return;
-
-    if (isSpeaking && utteranceRef.current) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      utteranceRef.current = null;
-      return;
-    }
-    
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(question.question);
-      utteranceRef.current = utterance;
-
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => {
-        if (utteranceRef.current === utterance) {
-          setIsSpeaking(false);
-          utteranceRef.current = null;
-        }
-      };
-      utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
-        if (utteranceRef.current === utterance) {
-          setIsSpeaking(false);
-          utteranceRef.current = null;
-        }
-        
-        const errorCode = event.error || "unknown_error";
-         console.error( 
-          `Speech synthesis error. Code: ${errorCode}. Utterance: "${event.utterance?.text?.substring(0,50)}..."`,
-          "Full event:", event
-        );
-        
-        let userMessage = "Could not play audio for the question.";
-        if (errorCode === 'synthesis-failed' || errorCode === 'audio-busy' || errorCode === 'network') {
-             userMessage += ` TTS service might be unavailable or busy. Please try again later.`;
-        } else if (typeof event.error === 'string' && event.error.trim() !== "") {
-            userMessage += ` Reason: ${event.error}.`;
-        } else if (event.error && typeof event.error === 'object' && 'message' in event.error && typeof (event.error as any).message === 'string') {
-            userMessage += ` Reason: ${(event.error as any).message}.`;
-        } else {
-            userMessage += ` Error code: ${errorCode}.`;
-        }
-        userMessage += " Check browser permissions and TTS settings."
-        toast({ title: "Speech Error", description: userMessage, variant: "destructive" });
-      };
-      window.speechSynthesis.speak(utterance);
-    } else {
-      toast({ title: "TTS Not Supported", description: "Your browser does not support text-to-speech, or it might be disabled.", variant: "destructive" });
-    }
-  };
-
-
   return (
     <Card className="w-full shadow-lg">
       <CardHeader className="relative pb-2">
@@ -150,20 +82,29 @@ export function QuizDisplay({
                 <CardTitle className="text-2xl leading-relaxed">{question.question}</CardTitle>
             </div>
             <div className="flex flex-col items-end space-y-1 shrink-0">
-                {accessibility.textToSpeech && (
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={handleSpeak} aria-label={isSpeaking ? "Stop speaking" : "Speak question"} className="shrink-0">
-                                    {isSpeaking ? <Loader2 className="h-5 w-5 animate-spin" /> : (question.question ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />) }
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                            <p>{isSpeaking ? "Stop speaking" : (question.question ? "Speak question" : "No question to speak")}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                )}
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={speakQuestion}
+                              aria-label={isSpeaking ? "Stop speaking" : (isTextToSpeechEnabled ? "Speak question" : "Text-to-speech disabled")}
+                              className="shrink-0"
+                            >
+                                {isSpeaking ?
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    : isTextToSpeechEnabled ?
+                                        <Volume2 className="h-5 w-5 text-primary" />
+                                        : <VolumeX className="h-5 w-5 text-muted-foreground" />
+                                }
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                        <p>{isSpeaking ? "Stop speaking" : (isTextToSpeechEnabled ? "Speak question" : "Text-to-speech disabled (Press F+J to enable)")}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </div>
         </div>
         {/* Per-question timer displayed below the question title and TTS icon area */}

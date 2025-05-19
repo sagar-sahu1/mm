@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { ReactNode} from 'react';
@@ -7,6 +6,8 @@ import type { Quiz, QuizQuestion, QuizTerminationReason } from "@/types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { v4 as uuidv4 } from 'uuid';
 import type { GenerateQuizQuestionsInput } from '@/ai/flows/generate-quiz-questions';
+import { updateUserScore } from '@/lib/firestoreUtils';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 interface StartQuizData extends Omit<Quiz, 'id' | 'createdAt' | 'currentQuestionIndex' | 'questions' | 'config' | 'timeLimitMinutes' | 'perQuestionTimeSeconds' | 'startedAt' | 'quizTerminationReason' | 'cheatingFlags'> {
@@ -44,6 +45,8 @@ export function QuizProvider({ children }: { children: ReactNode }) {
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
   const [allQuizzes, setAllQuizzes] = useLocalStorage<Quiz[]>("mindmash-quizzes", []);
+
+  const { currentUser } = useAuth();
 
   const startQuiz = useCallback((quizData: StartQuizData): string => {
     setIsLoadingQuiz(true);
@@ -149,9 +152,13 @@ export function QuizProvider({ children }: { children: ReactNode }) {
       };
       setAllQuizzes(prev => prev.map(q => q.id === completedQuiz.id ? completedQuiz : q));
       localStorage.removeItem('mindmash-active-quiz-temp');
+      // Update Firestore user score if quiz is completed and not cheating
+      if (currentUser && reason === "completed") {
+        updateUserScore(currentUser.uid, score).catch(console.error);
+      }
       return completedQuiz; 
     });
-  }, [setAllQuizzes]);
+  }, [setAllQuizzes, currentUser]);
   
   const loadQuizFromStorage = useCallback((quizId: string): Quiz | null => {
     setIsLoadingQuiz(true);

@@ -1,15 +1,308 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --font-primary: var(--font-primary);
+  --font-secondary: var(--font-secondary);
+}
+
 body {
-  font-family: var(--font-geist-sans), sans-serif;
+  font-family: var(--font-primary), serif;
+  font-weight: 400; /* Regular weight by default */
+}
+
+/* Font weight utility classes for primary font (Playfair Display) */
+.font-normal {
+  font-weight: 400;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+/* Typography styles */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-primary), serif;
+  font-weight: 500; /* Medium by default for headings */
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: 1.75rem;
+  font-weight: 500;
+}
+
+h4 {
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+h5 {
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+h6 {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+/* Secondary font styles (Outfit) */
+.font-secondary {
+  font-family: var(--font-secondary), sans-serif;
+  font-weight: 400;
+}
+
+/* Use secondary font for specific elements */
+blockquote, 
+.quote-text,
+.slogan,
+.description {
+  font-family: var(--font-secondary), sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+/* Gradient Text Style - Updated with primary font */
+.gradient-text {
+  font-family: var(--font-primary), serif;
+  font-weight: 700;
+  background: linear-gradient(90deg, #9333ea, #2de2e2, #0a95ff, #00FF00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+/* For Large Text Mode - Updated with better scaling and layout handling */
+.large-text {
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+
+/* Large Text Mode specific adjustments */
+.large-text .carousel-card {
+  min-height: 450px; /* Increased height to accommodate larger text */
+  padding: 2rem; /* Increased padding */
+}
+
+.large-text .carousel-card .card-title {
+  font-size: 1.75rem; /* Increased title size */
+  margin-bottom: 1.5rem;
+}
+
+.large-text .carousel-card .card-description {
+  font-size: 1.25rem; /* Increased description size */
+  line-height: 1.7;
+}
+
+/* Adjust carousel container for large text */
+.large-text .perspective-2000 {
+  height: 600px; /* Increased height for large text mode */
+}
+
+/* Ensure proper spacing in large text mode */
+.large-text .container {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+/* Adjust navigation and UI elements for large text */
+.large-text nav,
+.large-text button,
+.large-text input,
+.large-text select,
+.large-text textarea {
+  font-size: 1.15rem;
+  padding: 0.75rem 1.25rem; /* Increased padding for better touch targets */
+}
+
+/* Adjust heading sizes in large text mode */
+.large-text h1 {
+  font-size: 2.75rem;
+}
+
+.large-text h2 {
+  font-size: 2.25rem;
+}
+
+.large-text h3 {
+  font-size: 2rem;
+}
+
+.large-text h4 {
+  font-size: 1.75rem;
+}
+
+.large-text h5 {
+  font-size: 1.5rem;
+}
+
+.large-text h6 {
+  font-size: 1.25rem;
+}
+
+/* Ensure proper spacing between elements in large text mode */
+.large-text * + * {
+  margin-top: 1.25rem;
+}
+
+/* Adjust card spacing in large text mode */
+.large-text .carousel-card.left {
+  transform: translateX(calc(-50% - 450px)) scale(0.85) translateZ(-150px);
+}
+
+.large-text .carousel-card.right {
+  transform: translateX(calc(-50% + 450px)) scale(0.85) translateZ(-150px);
+}
+
+/* Ensure proper footer spacing in large text mode */
+.large-text footer {
+  padding: 2rem 0;
+}
+
+/* Adjust gradient text size in large text mode */
+.large-text .gradient-text {
+  font-size: 1.25em;
+}
+
+/* Ensure proper button spacing in large text mode */
+.large-text .settings-button {
+  padding: 1rem;
+  font-size: 1.25rem;
+}
+
+/* Adjust form elements in large text mode */
+.large-text input[type="text"],
+.large-text input[type="email"],
+.large-text input[type="password"],
+.large-text textarea {
+  padding: 1rem;
+  font-size: 1.15rem;
+  min-height: 3.5rem;
+}
+
+/* Ensure proper spacing in quiz elements for large text */
+.large-text .quiz-container {
+  padding: 2rem;
+}
+
+.large-text .quiz-question {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.large-text .quiz-options {
+  gap: 1.5rem;
+}
+
+.large-text .quiz-option {
+  padding: 1.25rem;
+  font-size: 1.15rem;
+}
+
+/* Ensure proper modal sizing in large text mode */
+.large-text .modal-content {
+  padding: 2rem;
+  max-width: 90vw;
+}
+
+/* Adjust table text in large text mode */
+.large-text table {
+  font-size: 1.15rem;
+}
+
+.large-text th,
+.large-text td {
+  padding: 1rem;
+}
+
+/* Ensure proper spacing in lists for large text */
+.large-text ul,
+.large-text ol {
+  padding-left: 2rem;
+  margin: 1.5rem 0;
+}
+
+.large-text li {
+  margin-bottom: 1rem;
+}
+
+/* Adjust badge and tag sizes in large text mode */
+.large-text .badge,
+.large-text .tag {
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+}
+
+/* Ensure proper spacing in grid layouts for large text */
+.large-text .grid {
+  gap: 2rem;
+}
+
+/* Adjust card grid items in large text mode */
+.large-text .grid-cols-1,
+.large-text .grid-cols-2,
+.large-text .grid-cols-3,
+.large-text .grid-cols-4 {
+  gap: 2rem;
+}
+
+/* Ensure proper spacing in flex layouts for large text */
+.large-text .flex {
+  gap: 1.5rem;
+}
+
+/* Adjust spacing in navigation items for large text */
+.large-text .nav-item {
+  padding: 1rem 1.5rem;
+}
+
+/* Ensure proper spacing in dropdown menus for large text */
+.large-text .dropdown-menu {
+  padding: 1rem;
+}
+
+.large-text .dropdown-item {
+  padding: 0.75rem 1.25rem;
+  font-size: 1.15rem;
+}
+
+/* Navigation and UI elements use primary font */
+nav, 
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-primary), serif;
+}
+
+/* Footer text uses secondary font for a softer look */
+footer {
+  font-family: var(--font-secondary), sans-serif;
+  font-weight: 400;
 }
 
 @layer base {
   :root {
-    --background: 200 20% 98%; /* Soothing Blue Light BG (#F5F5F5 is 0 0% 96%) -> HSL(200, 20%, 98%) is approx #F5F7FA */
+    --background: 200 20% 98%; /* Soothing Blue Light BG (#F5F7FA) */
     --foreground: 215 28% 17%; /* Text: #1F2937 */
 
     --card: 0 0% 100%; /* White cards */
@@ -18,7 +311,7 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 215 28% 17%; /* Text: #1F2937 */
 
-    --primary: 217 91% 60%;    /* Soothing Blue Primary: #64B5F6 HSL(207, 82%, 69%) */
+    --primary: 207 82% 69%;    /* Soothing Blue Primary: #64B5F6 */
     --primary-foreground: 0 0% 100%; /* White for good contrast on Blue */
 
     --secondary: 210 17% 94%; /* A bit darker than light BG for secondary elements */
@@ -27,7 +320,7 @@ body {
     --muted: 210 17% 96%; 
     --muted-foreground: 215 15% 45%; /* Muted text */
 
-    --accent: 174 65% 51%;     /* Vibrant Teal Accent: #26A69A HSL(174, 63%, 37%) -> Using a slightly lighter HSL(174, 65%, 51%) #4DB6AC */
+    --accent: 174 63% 37%;     /* Vibrant Teal Accent: #26A69A */
     --accent-foreground: 0 0% 100%; /* White for good contrast on Teal */
 
     --destructive: 0 84.2% 60.2%;
@@ -35,7 +328,7 @@ body {
 
     --border: 210 17% 90%;
     --input: 210 17% 95%;
-    --ring: 217 91% 60%;    /* Primary for ring */
+    --ring: 207 82% 69%;    /* Primary for ring */
 
     --radius: 0.5rem;
 
@@ -56,8 +349,8 @@ body {
     --popover: 222 47% 15%;
     --popover-foreground: 210 17% 95%;
 
-    --primary: 217 91% 70%;    /* Lighter Soothing Blue for dark mode */
-    --primary-foreground: 222 47% 11%; /* Dark text (Dark BG color) for contrast */
+    --primary: 265 80% 60%;    /* Purple for dark mode */
+    --primary-foreground: 210 17% 95%; /* Light text */
 
     --secondary: 222 40% 20%; /* Darker secondary */
     --secondary-foreground: 210 17% 95%;
@@ -73,7 +366,7 @@ body {
 
     --border: 222 40% 25%;
     --input: 222 40% 22%;
-    --ring: 217 91% 70%; /* Lighter primary for ring */
+    --ring: 265 80% 60%; /* Purple for ring in dark mode */
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
@@ -84,9 +377,7 @@ body {
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
   body {
     @apply bg-background text-foreground;
     min-height: 100vh;
@@ -96,11 +387,15 @@ body {
   main {
     flex-grow: 1;
   }
-}
 
-/* For Large Text Mode */
-.large-text {
-  font-size: 1.15rem; /* Or adjust as needed */
+  /* Gradient Text Style */
+  .gradient-text {
+    background: linear-gradient(90deg, #9333ea, #2de2e2, #0a95ff, #00FF00); /* Purple, Cyan, Coral Blue, Green */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent; /* Fallback for non-webkit browsers */
+  }
 }
 
 /* Basic High Contrast Mode (can be expanded) */
@@ -158,4 +453,227 @@ body {
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+}
+
+.container {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+/* Netflix-style Carousel */
+.perspective-2000 {
+  perspective: 2000px;
+  transform-style: preserve-3d;
+  width: 100%;
+  height: 500px;
+  position: relative;
+  overflow: hidden;
+  display: flex; /* Added to help center the track */
+  justify-content: center; /* Added to center the track horizontally */
+  align-items: center; /* Added to center the track vertically */
+}
+
+.carousel-container {
+  position: relative;
+  width: 100%; /* Allow container to take full width of parent */
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.carousel-track {
+  position: relative;
+  width: fit-content; /* Allow track to size based on content */
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* We position individual cards absolutely within this track */
+}
+
+.carousel-card {
+  position: absolute;
+  width: 400px;
+  min-height: 400px;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  will-change: transform, opacity, filter, box-shadow; /* Added filter and box-shadow to will-change */
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  left: 50%; /* Center the card's origin */
+}
+
+.carousel-card.center {
+  transform: translateX(-50%) scale(1.1) translateZ(0);
+  z-index: 30;
+  opacity: 1;
+  filter: none; /* Clear blur for center card */
+  box-shadow: 0 25px 50px -12px rgba(42, 237, 205, 0.4); /* Light mode shadow */
+}
+
+.dark .carousel-card.center {
+  box-shadow: 0 25px 50px -12px rgba(147, 51, 234, 0.4); /* Dark mode purple shadow */
+}
+
+.carousel-card.left {
+  transform: translateX(calc(-50% - 420px)) scale(0.85) translateZ(-150px);
+  z-index: 20;
+  opacity: 0.6;
+  filter: blur(3px); /* Apply blur to side cards */
+  box-shadow: 0 10px 15px -3px rgba(42, 237, 205, 0.2); /* Light mode shadow */
+}
+
+.dark .carousel-card.left {
+    box-shadow: 0 10px 15px -3px rgba(147, 51, 234, 0.2); /* Dark mode purple shadow */
+}
+
+.carousel-card.right {
+  transform: translateX(calc(-50% + 420px)) scale(0.85) translateZ(-150px);
+  z-index: 20;
+  opacity: 0.6;
+  filter: blur(3px); /* Apply blur to side cards */
+  box-shadow: 0 10px 15px -3px rgba(42, 237, 205, 0.2); /* Light mode shadow */
+}
+
+.dark .carousel-card.right {
+    box-shadow: 0 10px 15px -3px rgba(147, 51, 234, 0.2); /* Dark mode purple shadow */
+}
+
+.carousel-card.hidden {
+  transform: translateX(-50%) scale(0.7) translateZ(-200px);
+  z-index: 10;
+  opacity: 0;
+  filter: blur(5px); /* Apply more blur to hidden cards */
+}
+
+.dark .carousel-card.hidden {
+    box-shadow: 0 10px 15px -3px rgba(147, 51, 234, 0.1); /* Dark mode purple shadow */
+}
+
+/* Card content styles */
+.carousel-card .card-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--foreground);
+}
+
+.carousel-card .card-description {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+
+/* Card hover effects */
+.carousel-card:hover {
+  box-shadow: 0 25px 50px -12px rgba(42, 237, 205, 0.4); /* Light mode shadow */
+}
+
+.dark .carousel-card:hover {
+  box-shadow: 0 25px 50px -12px rgba(147, 51, 234, 0.4); /* Dark mode purple shadow */
+}
+
+/* Smooth transitions for all properties */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 600ms;
+  will-change: transform, opacity, filter, box-shadow; /* Ensure filter and box-shadow are included */
+}
+
+/* Remove Animated Gradient Border Styles */
+.animated-gradient-border,
+.animated-gradient-border::before,
+.animated-gradient-border > * {
+    /* Remove all styles related to the animated gradient border */
+    position: unset !important;
+    z-index: unset !important;
+    border-radius: unset !important;
+    overflow: unset !important;
+    background: unset !important;
+    border: unset !important;
+    padding: unset !important;
+    margin: unset !important;
+    width: unset !important;
+    height: unset !important;
+    box-sizing: unset !important;
+    /* Remove pseudo-element content */
+    content: none !important;
+    /* Remove animation */
+    animation: none !important;
+    background-size: unset !important;
+    mask: none !important;
+    -webkit-mask: none !important;
+}
+
+/* Remove the keyframes animation */
+@keyframes borderFlow {
+    0% { background-position: unset; }
+    50% { background-position: unset; }
+    100% { background-position: unset; }
+}
+
+/* Remove all settings-related styles */
+.settings-icon-border,
+.settings-icon-border::before,
+.settings-icon-border > *,
+.settings-panel-glassmorphism,
+.dark .settings-icon-border,
+.dark .settings-panel-glassmorphism {
+    all: unset;
+}
+
+/* Settings Icon Glow */
+.settings-icon-glow {
+  color: #0ea5e9; /* Sky blue color */
+  filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.6));
+}
+
+.dark .settings-icon-glow {
+  color: #38bdf8; /* Lighter blue for dark mode */
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
+}
+
+/* Localized Gradient Background Effect */
+.localized-gradient-bg {
+  position: relative;
+  overflow: hidden; /* Hide pseudo-element overflow */
+}
+
+.localized-gradient-bg::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%; /* Adjust size as needed */
+  height: 100%; /* Adjust size as needed */
+  /* Light mode gradient: purple to white */
+  background: radial-gradient(circle 1000px at bottom left, rgba(147, 51, 234, 0.3) 0%, rgba(var(--background), 0) 70%); /* Using purple rgba for light mode */
+  pointer-events: none; /* Allow interaction with elements behind */
+  z-index: -1; /* Position behind content */
+}
+
+.dark .localized-gradient-bg::before {
+  /* Dark mode gradient: purple to black */
+  background: radial-gradient(circle 1000px at bottom left, rgba(147, 51, 234, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+/* Remove Page Loader Animation */
+.page-loader-overlay,
+.page-loader-overlay.hidden,
+.loader-spinner,
+.loader-spinner div {
+  all: unset !important;
+}
+
+@keyframes loader-spin {
+    0% { transform: unset; }
+    100% { transform: unset; }
 }

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -57,78 +56,107 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <Card className="shadow-xl">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <Mail className="h-16 w-16 text-primary" />
-          </div>
-          <CardTitle className="text-4xl font-bold">Contact Us</CardTitle>
-          <CardDescription className="text-xl text-muted-foreground">
-            Have questions or feedback? We&apos;d love to hear from you!
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6 md:p-8">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-lg">Full Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Doe" {...field} className="text-base py-6" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-lg">Email Address</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="you@example.com" {...field} className="text-base py-6" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="message"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-lg">Message</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Tell us how we can help..."
-                        className="resize-y min-h-[120px] text-base p-4"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" size="lg" className="w-full text-lg py-6 shadow-md" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-5 w-5" /> Send Message
-                  </>
-                )}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+    <div className="min-h-[calc(100vh-20rem)] flex items-center justify-center py-12 text-white localized-gradient-bg">
+      <div className="w-full max-w-5xl mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        {/* Left Section: Text */}
+        <div className="text-center lg:text-left space-y-6">
+          <span className="inline-block bg-muted/20 text-muted-foreground text-sm font-semibold px-4 py-1 rounded-full border border-muted-foreground/30">
+            Contact Us
+          </span>
+          <h1 className="text-5xl md:text-6xl font-bold leading-tight text-foreground">
+            Let&apos;s Get In Touch.
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            {/* Removed manual contact text */}
+          </p>
+        </div>
+
+        {/* Right Section: Form */}
+        <Card className="w-full bg-card/10 backdrop-blur-lg border border-primary/20 shadow-xl">
+          
+          <CardContent className="p-6 md:p-8">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Name Field */}
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base text-muted-foreground">Full Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter your full name..." 
+                          {...field} 
+                          className="text-base py-6 bg-background/20 border-primary/20 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/60"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Email Field */}
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base text-muted-foreground">Email Address</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="email" 
+                          placeholder="Enter your email address..." 
+                          {...field} 
+                          className="text-base py-6 bg-background/20 border-primary/20 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/60"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Message Field */}
+                <FormField
+                  control={form.control}
+                  name="message"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base text-muted-foreground">Message</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Enter your main text here..."
+                          className="resize-y min-h-[150px] text-base p-4 bg-background/20 border-primary/20 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/60"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Submit Button */}
+                <Button 
+                  type="submit" 
+                  size="lg" 
+                  className="w-full text-lg py-6 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 text-white shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" /> Sending...
+                    </>
+                  ) : (
+                    <>
+                      Submit Form <Send className="h-5 w-5" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
