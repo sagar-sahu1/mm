@@ -595,6 +595,35 @@ export default function QuizPage() {
     setWebcamDenied(true);
   };
 
+  // Prevent screenshot attempts
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Block PrintScreen
+      if (e.key === 'PrintScreen') {
+        e.preventDefault();
+        toast({
+          title: 'Screenshot Blocked',
+          description: 'Screenshots are not allowed during the quiz.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+      // Block Ctrl+Shift+S (Windows snip), Cmd+Shift+4 (Mac), etc.
+      if ((e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') ||
+          (e.metaKey && e.shiftKey && e.key === '4')) {
+        e.preventDefault();
+        toast({
+          title: 'Screenshot Blocked',
+          description: 'Screenshots are not allowed during the quiz.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toast]);
+
   if (!isClient || isLoadingQuiz) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">

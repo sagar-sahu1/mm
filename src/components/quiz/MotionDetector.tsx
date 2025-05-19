@@ -30,6 +30,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
   showPreview = false,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const previewRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prevImageData = useRef<ImageData | null>(null);
   const [motionWarnings, setMotionWarnings] = useState(0);
@@ -53,6 +54,9 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
         setStream(mediaStream);
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
+        }
+        if (previewRef.current) {
+          previewRef.current.srcObject = mediaStream;
         }
       })
       .catch(() => {
@@ -132,11 +136,11 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
       {showPreview && stream && (
         <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 50 }}>
           <video
-            ref={videoRef}
+            ref={previewRef}
             autoPlay
             playsInline
             muted
-            style={{ width: 120, height: 90, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.25)', background: '#222' }}
+            style={{ width: 120, height: 90, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.25)', background: '#222', objectFit: 'cover' }}
           />
         </div>
       )}
