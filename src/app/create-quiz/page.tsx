@@ -44,8 +44,3 @@ export default function CreateQuizPage() {
   );
 }
 
-export const metadata: Metadata = {
-  title: "Create Quiz - MindMash",
-  description: "Configure and generate a new quiz with custom parameters.",
-};
-
