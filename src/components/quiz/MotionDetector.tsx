@@ -89,7 +89,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
     canvas.height = height;
 
     let blankFrameCount = 0;
-    const BLANK_FRAME_LIMIT = 2; // 2 intervals (4 seconds)
+    const BLANK_FRAME_LIMIT = 3; // 3 intervals (6 seconds)
     let warningTimeout: NodeJS.Timeout | null = null;
 
     const detectMotion = () => {
@@ -105,7 +105,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
         if (avg < 10) blackPixels++;
       }
       const now = Date.now();
-      if (blackPixels > width * height * 0.7) { // >70% black
+      if (blackPixels > width * height * 0.85) { // >85% black
         blankFrameCount++;
         if (blankFrameCount >= BLANK_FRAME_LIMIT) {
           // Only allow one warning per 90 seconds

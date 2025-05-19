@@ -1,6 +1,6 @@
 # MindMash
 
-MindMash is a modern, accessible, and responsive quiz platform built with Next.js, React, and Tailwind CSS. It features text-to-speech, proctored quizzes, a beautiful UI, and is installable as a Progressive Web App (PWA).
+MindMash is a modern, accessible, and responsive quiz platform built with Next.js, React, and Tailwind CSS. It features text-to-speech, proctored quizzes (with webcam and screenshot prevention), a beautiful UI, and is installable as a Progressive Web App (PWA).
 
 ## 🚀 Tech Stack
 - **Framework:** Next.js 15 (App Router)
@@ -70,9 +70,17 @@ MindMash is a modern, accessible, and responsive quiz platform built with Next.j
 - **Responsive:** Looks great on mobile, tablet, and desktop.
 - **PWA:** Installable, offline-ready, fast.
 - **Text-to-Speech:** Reads questions and answers aloud for accessibility.
-- **Proctored Quizzes:** Anti-cheating, time limits, and more.
+- **Proctored Quizzes:**
+  - **Webcam proctoring:** Detects if the camera is blocked or user leaves the frame (human-friendly, not aggressive).
+  - **Screenshot prevention:** Blocks PrintScreen and common screenshot shortcuts.
+  - **Time limits and cheating flags.**
+- **PDF Export:** Download quiz results as a PDF with user ID, quiz info, answers, and suspicious activity log.
 - **Modern UI:** Beautiful, engaging, and easy to use.
 - **Easy Deployment:** One-click deploy to Vercel.
+- **New M² Favicon:** Mathematical-style favicon for MindMash.
+- **Improved Desktop Footer:** Footer is now perfectly aligned and spaced for large screens.
+- **[Project Architecture](./docs/architecture.md):** Deep dive into the project structure.
+- **[Database Schema](./docs/database-schema.md):** Details on all stored data, tables, and relationships.
 
 ---
 

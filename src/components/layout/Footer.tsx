@@ -17,9 +17,10 @@ export function Footer() {
   return (
     <footer className="py-8 border-t border-border/40 bg-card text-card-foreground">
       <div className="container mx-auto max-w-5xl space-y-8 px-2 sm:px-0">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8 mx-auto w-full sm:w-fit">
+        {/* Responsive grid: stack on mobile, flex row on large screens */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row lg:justify-between lg:items-start gap-x-8 gap-y-8 lg:gap-x-64 mx-auto w-full sm:w-fit">
           {/* Column 1: About, Contact, Privacy, FAQ */}
-          <div className="flex flex-col items-start space-y-4">
+          <div className="flex flex-col items-start space-y-4 min-w-[220px]">
             <Link href="/about" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
               <InfoIcon className="h-5 w-5" />
               About Us
@@ -38,7 +39,7 @@ export function Footer() {
             </Link>
           </div>
           {/* Column 2: Dashboard, Leaderboard, History, Challenge */}
-          <div className="flex flex-col items-start space-y-4">
+          <div className="flex flex-col items-start space-y-4 min-w-[220px] lg:ml-16">
              <Link href="/dashboard" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
               <LayoutDashboard className="h-5 w-5" />
               Dashboard
