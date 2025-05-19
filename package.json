@@ -46,6 +46,8 @@
     "jspdf": "^2.5.1",
     "lucide-react": "^0.475.0",
     "next": "15.2.3",
+    "next-pwa": "^5.6.0",
+    "nodemailer": "^7.0.3",
     "patch-package": "^8.0.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -55,8 +57,7 @@
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^10.0.0",
-    "zod": "^3.24.2",
-    "next-pwa": "^5.6.0"
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/node": "20.17.47",

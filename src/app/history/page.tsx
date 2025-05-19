@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -16,9 +15,8 @@ import { useRouter } from 'next/navigation'; // Import useRouter
 
 export default function QuizHistoryPage() {
   const { allQuizzes, deleteQuiz, clearAllCompletedQuizzes } = useQuiz();
-  const { currentUser, loading: authLoading } = useAuth(); // Get auth state
-  const router = useRouter(); // Initialize router
-
+  const { currentUser, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -27,12 +25,20 @@ export default function QuizHistoryPage() {
     setIsClient(true);
   }, []);
 
-  // Redirect if not logged in
   useEffect(() => {
     if (isClient && !authLoading && !currentUser) {
       router.push('/login?redirect=/history');
     }
   }, [isClient, authLoading, currentUser, router]);
+
+  if (!isClient || authLoading || !currentUser) {
+    return (
+      <div className="flex flex-col justify-center items-center h-64">
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-3" />
+        <p>Loading history...</p>
+      </div>
+    );
+  }
 
   const completedQuizzes = allQuizzes
     .filter(quiz => quiz.completedAt) // Only show quizzes associated with the current user if you link quizzes to users in the future
@@ -49,31 +55,6 @@ export default function QuizHistoryPage() {
     clearAllCompletedQuizzes();
     setShowClearAllConfirm(false);
   };
-
-  if (!isClient || authLoading) {
-    return (
-      <div className="flex flex-col justify-center items-center h-64">
-        <Loader2 className="h-10 w-10 animate-spin text-primary mb-3" />
-        <p>Loading history...</p>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    // This state should ideally be caught by the redirect, but as a fallback:
-    return (
-      <div className="flex flex-col justify-center items-center h-64 text-center">
-        <CardTitle className="text-2xl mb-2">Access Denied</CardTitle>
-        <CardDescription className="mb-4">You need to be logged in to view your quiz history.</CardDescription>
-        <Button asChild>
-          <Link href="/login?redirect=/history">
-            <LogIn className="mr-2 h-4 w-4" /> Login
-          </Link>
-        </Button>
-      </div>
-    );
-  }
-
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">

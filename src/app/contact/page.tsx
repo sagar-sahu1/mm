@@ -41,18 +41,35 @@ export default function ContactPage() {
 
   async function onSubmit(values: ContactFormValues) {
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    console.log("Contact Form Submitted:", values);
-    // In a real app, you would send this data to a backend (e.g., Firebase Functions, an email service)
-    
-    toast({
-      title: "Message Sent!",
-      description: "Thanks for reaching out. We'll get back to you soon.",
-    });
-    form.reset(); // Reset form after submission
-    setIsSubmitting(false);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+      if (res.ok) {
+        toast({
+          title: "Message Sent!",
+          description: "Thanks for reaching out. We'll get back to you soon.",
+        });
+        form.reset();
+      } else {
+        const data = await res.json();
+        toast({
+          title: "Failed to send message.",
+          description: data.error || "Please try again later.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to send message.",
+        description: error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (

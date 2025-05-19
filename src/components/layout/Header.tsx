@@ -32,12 +32,12 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center space-x-2">
+      <div className="container flex flex-col sm:flex-row h-auto sm:h-16 items-center justify-between px-2 sm:px-4 gap-2 sm:gap-0">
+        <Link href="/" className="flex items-center space-x-2 mb-2 sm:mb-0">
           <GraduationCap className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg">{siteConfig.name}</span>
         </Link>
-        <nav className="flex items-center space-x-2 sm:space-x-4">
+        <nav className="flex items-center space-x-2 sm:space-x-4 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
           <Button asChild variant="ghost" size="sm">
             <Link href="/" className="flex items-center">
               <Home className="mr-2 h-4 w-4" />

@@ -67,28 +67,28 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center text-center space-y-12 py-8 md:py-16">
+    <div className="flex flex-col items-center justify-center text-center space-y-12 py-8 md:py-16 px-2 sm:px-4">
       <section className="space-y-6">
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight break-words">
           Welcome to <span className="gradient-text">MindMash</span>
         </h1>
         <p className="max-w-2xl mx-auto text-lg sm:text-xl text-muted-foreground">
           Unleash your curiosity! Generate engaging quizzes on any topic with the power of AI,
           challenge yourself, and track your learning journey.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button asChild size="lg" className="text-lg py-6 px-8 shadow-lg hover:shadow-primary/50 transition-shadow">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center w-full">
+          <Button asChild size="lg" className="text-lg py-6 px-8 shadow-lg hover:shadow-primary/50 transition-shadow w-full sm:w-auto">
             <Link href="/create-quiz">
               <Lightbulb className="mr-2 h-5 w-5" /> Create Your First Quiz
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="text-lg py-6 px-8">
+          <Button asChild variant="outline" size="lg" className="text-lg py-6 px-8 w-full sm:w-auto">
             <Link href="#features">Learn More</Link>
           </Button>
         </div>
       </section>
 
-      <section id="features" className="w-full max-w-6xl space-y-10 scroll-mt-20 mb-24">
+      <section id="features" className="w-full max-w-6xl space-y-10 scroll-mt-20 mb-24 px-0 sm:px-4">
         <h2 className="text-3xl font-bold">Why MindMash?</h2>
         <div className="perspective-2000">
           <div className="carousel-container">
@@ -116,7 +116,7 @@ export default function HomePage() {
         </div>
       </section>
       
-      <section className="w-full max-w-2xl">
+      <section className="w-full max-w-2xl px-0 sm:px-4">
          <Card className="bg-card shadow-xl border border-purple-500">
           <CardHeader>
             <CardTitle className="text-2xl">Ready to Mash Some Knowledge?</CardTitle>

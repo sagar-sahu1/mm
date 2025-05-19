@@ -327,7 +327,7 @@ export default function QuizPage() {
         ?.map((opt, index) => `Option ${index + 1}: ${opt}`)
         .join('. ');
       const fullText = `${questionText}. ${optionsText || ''}`;
-
+      
       // Cancel any ongoing speech before starting new
       if (speechSynthesis.speaking || speechSynthesis.paused) {
         speechSynthesis.cancel();
@@ -338,7 +338,7 @@ export default function QuizPage() {
       }
       speechTimeoutRef.current = setTimeout(() => {
         try {
-          speakText(fullText);
+           speakText(fullText);
         } catch (err) {
           toast({
             title: "Text-to-Speech Error",

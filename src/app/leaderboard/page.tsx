@@ -9,14 +9,24 @@ import { Loader2, Trophy, UserCircle, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 type TimeFilter = 'weekly' | 'monthly' | 'allTime';
 
 export default function LeaderboardPage() {
+  const { currentUser, loading } = useAuth();
+  const router = useRouter();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('weekly');
+
+  useEffect(() => {
+    if (!loading && !currentUser) {
+      router.push('/login?redirect=/leaderboard');
+    }
+  }, [currentUser, loading, router]);
 
   useEffect(() => {
     async function fetchLeaderboard() {
@@ -47,6 +57,10 @@ export default function LeaderboardPage() {
     }
     fetchLeaderboard();
   }, [timeFilter]); // Re-fetch when time filter changes
+
+  if (loading || !currentUser) {
+    return <div className="flex justify-center items-center h-64">Loading...</div>;
+  }
 
   if (isLoading) {
     return (

@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Quiz } from "@/types";
@@ -11,6 +10,8 @@ import Link from "next/link";
 import { QuizDisplay } from "./QuizDisplay";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
+import { generateAnswerExplanation } from '@/ai/flows/generate-answer-explanation';
+import { useEffect, useState } from 'react';
 
 interface ResultDisplayProps {
   quiz: Quiz;
@@ -21,6 +22,33 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
   const scorePercentage = quiz.score !== undefined && quiz.questions.length > 0
     ? Math.round((quiz.score / quiz.questions.length) * 100)
     : 0;
+
+  const [explanations, setExplanations] = useState<string[]>([]);
+  const [loadingExplanations, setLoadingExplanations] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchExplanations() {
+      setLoadingExplanations(true);
+      const results: string[] = [];
+      for (const q of quiz.questions) {
+        try {
+          const res = await generateAnswerExplanation({
+            question: q.question,
+            correctAnswer: q.correctAnswer,
+            userAnswer: q.userAnswer || '',
+          });
+          results.push(res.explanation);
+        } catch {
+          results.push('Explanation not available.');
+        }
+      }
+      if (isMounted) setExplanations(results);
+      setLoadingExplanations(false);
+    }
+    fetchExplanations();
+    return () => { isMounted = false; };
+  }, [quiz.questions]);
 
   const handleDownloadPdf = () => {
     try {
@@ -104,6 +132,12 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
         
         doc.setTextColor(0,0,0); // Reset to black
         yPosition += lineHeight * 1.5; // Extra space between questions
+
+        if (explanations[index]) {
+          const explanationLines = doc.splitTextToSize('Explanation: ' + explanations[index], doc.internal.pageSize.width - margin * 2);
+          doc.text(explanationLines, margin + 5, yPosition);
+          yPosition += explanationLines.length * (lineHeight-1);
+        }
       });
 
       doc.save(`MindMash_Quiz_Results_${quiz.topic.replace(/\s+/g, '_')}.pdf`);
@@ -234,6 +268,9 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
                       onPerQuestionTimeUp={() => {}} // No action
                       timerKey={`result-q-${q.id}`}
                     />
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      {loadingExplanations ? 'Loading explanation...' : explanations[index] || 'Explanation not available.'}
+                    </div>
                 </AccordionContent>
               </AccordionItem>
             ))}

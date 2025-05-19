@@ -16,8 +16,8 @@ const footerNavItems = [
 export function Footer() {
   return (
     <footer className="py-8 border-t border-border/40 bg-card text-card-foreground">
-      <div className="container mx-auto max-w-5xl space-y-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-[40vw] gap-y-8 mx-auto w-fit">
+      <div className="container mx-auto max-w-5xl space-y-8 px-2 sm:px-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8 mx-auto w-full sm:w-fit">
           {/* Column 1: About, Contact, Privacy, FAQ */}
           <div className="flex flex-col items-start space-y-4">
             <Link href="/about" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
