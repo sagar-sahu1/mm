@@ -35,6 +35,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
   const prevImageData = useRef<ImageData | null>(null);
   const [motionWarnings, setMotionWarnings] = useState(0);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [previewKey, setPreviewKey] = useState(0);
   const intervalId = useRef<NodeJS.Timeout | null>(null);
 
   // Request webcam access on mount
@@ -52,6 +53,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
       .then((mediaStream) => {
         if (!active) return;
         setStream(mediaStream);
+        setPreviewKey(prev => prev + 1);
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
         }
@@ -136,7 +138,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
         previewRef.current.srcObject = stream;
       }
     }
-  }, [stream, videoRef, previewRef]);
+  }, [stream, videoRef, previewRef, previewKey]);
 
   // Hidden video/canvas, plus optional preview
   return (
@@ -145,15 +147,22 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
         <video ref={videoRef} autoPlay playsInline muted />
         <canvas ref={canvasRef} />
       </div>
-      {/* Always render preview video, but only show if showPreview and stream exist */}
-      <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 50, display: showPreview && stream ? 'block' : 'none' }}>
-        <video
-          ref={previewRef}
-          autoPlay
-          playsInline
-          muted
-          style={{ width: 120, height: 90, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.25)', background: '#222', objectFit: 'cover' }}
-        />
+      {/* Always render preview video, but only show if showPreview is true */}
+      <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 50, width: 120, height: 90, background: '#222', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.25)', display: showPreview ? 'block' : 'none', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+        {stream ? (
+          <video
+            key={previewKey}
+            ref={previewRef}
+            autoPlay
+            playsInline
+            muted
+            style={{ width: 120, height: 90, borderRadius: 12, objectFit: 'cover', background: '#222' }}
+          />
+        ) : (
+          <div style={{ color: '#fff', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>
+            Camera not available
+          </div>
+        )}
       </div>
     </>
   );
