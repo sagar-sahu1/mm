@@ -13,37 +13,37 @@ export default function HomePage() {
     {
       icon: <Zap className="h-8 w-8 text-accent" />,
       title: "AI-Powered Quizzes",
-      description: "Experience the future of learning with our advanced AI quiz generation. Simply input any topic, and watch as our intelligent system crafts engaging, well-structured questions tailored to your needs. Perfect for students preparing for exams, teachers creating assessments, or anyone looking to test their knowledge in a fun, interactive way."
+      description: "Generate quizzes instantly on any topic. Our AI crafts questions tailored to your needs, making learning fast, fun, and effective for students, teachers, and lifelong learners alike."
     },
     {
       icon: <Layout className="h-8 w-8 text-accent" />,
       title: "Interactive Interface",
-      description: "Immerse yourself in our thoughtfully designed quiz-taking experience. Navigate through questions with ease, track your time with built-in timers, and monitor your progress in real-time. Our intuitive interface ensures you can focus on learning without any distractions, making your quiz experience both enjoyable and productive."
+      description: "Enjoy a smooth quiz experience. Navigate questions easily, track your time, and see your progress in real time—all in a distraction-free, user-friendly interface."
     },
     {
       icon: <CheckCircle className="h-8 w-8 text-green-500" />,
       title: "Track Your Progress",
-      description: "Take control of your learning journey with comprehensive progress tracking. Analyze your performance across different topics, identify areas for improvement, and celebrate your achievements. Our detailed analytics help you understand your strengths and weaknesses, enabling you to focus your efforts where they matter most."
+      description: "Monitor your learning journey. Analyze your scores, spot strengths and weaknesses, and celebrate your achievements with detailed analytics and progress tracking."
     },
     {
       icon: <Volume2 className="h-8 w-8 text-accent" />,
       title: "Text to Speech",
-      description: "Make learning accessible to everyone with our built-in text-to-speech functionality. Whether you're an auditory learner, have visual impairments, or simply prefer listening, our feature reads questions and answers aloud, ensuring an inclusive learning environment for all users."
+      description: "Make quizzes accessible for everyone. Listen to questions and answers aloud—perfect for auditory learners or users with visual impairments."
     },
     {
       icon: <Shield className="h-8 w-8 text-accent" />,
       title: "Proctored Method",
-      description: "Maintain academic integrity with our advanced anti-cheating measures. Our system monitors for suspicious behavior, prevents unauthorized access to answers, and ensures a fair playing field for all users. Take quizzes with confidence, knowing that your results reflect your true knowledge and understanding."
+      description: "Keep quizzes fair. Our anti-cheating features ensure your results reflect your true knowledge and effort."
     },
     {
       icon: <Users className="h-8 w-8 text-accent" />,
       title: "Challenge a Friend",
-      description: "Transform learning into a social experience with our 1v1 challenge feature. Compete with friends in real-time quiz battles, compare scores, and motivate each other to improve. Share your achievements on social media and build a community of learners who push each other to excel."
+      description: "Compete with friends in real-time quiz battles. Share your scores and motivate each other to learn more."
     },
     {
       icon: <Download className="h-8 w-8 text-accent" />,
       title: "Download Quiz Results",
-      description: "Keep a record of your learning journey by downloading your quiz performance data as a PDF document. Easily save your results for review, share your achievements with others, or use the document for personal analysis."
+      description: "Save your quiz results as a PDF. Review your answers, track your progress, and share your achievements easily."
     }
   ];
 
@@ -96,7 +96,7 @@ export default function HomePage() {
               {features.map((feature, index) => (
                 <Card 
                   key={index}
-                  className={getCardClass(index)}
+                  className={getCardClass(index) + " p-4 md:p-6"}
                 >
                   <CardHeader>
                     <CardTitle className="flex items-center gap-3 text-2xl mb-4">

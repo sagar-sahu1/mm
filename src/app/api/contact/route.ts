@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,28 +7,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+    // Send to formsubmit.co (will forward to both emails)
+    const formData = new URLSearchParams();
+    formData.append('name', name);
+    formData.append('email', email);
+    formData.append('message', message);
+    formData.append('_subject', `New Contact Form Submission from ${name}`);
+    formData.append('_cc', 'skshahilakhtar@gmail.com'); // Send to both emails
+
+    const res = await fetch('https://formsubmit.co/sahilrajputsingh81@gmail.com', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString(),
     });
 
-    const mailOptions = {
-      from: `MindMash Contact <${process.env.SMTP_USER}>`,
-      to: 'sahilrajputsingh81@gmail.com,skshahilakhtar@gmail.com',
-      subject: `New Contact Form Submission from ${name}`,
-      text: `Name: ${name}\nEmail: ${email}\nMessage: ${message}`,
-      html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p><strong>Message:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>`,
-    };
-
-    await transporter.sendMail(mailOptions);
-    return NextResponse.json({ success: true });
+    if (res.ok) {
+      return NextResponse.json({ success: true });
+    } else {
+      return NextResponse.json({ error: 'Failed to send message. Please try again later.' }, { status: 500 });
+    }
   } catch (error) {
-    console.error('Contact form email error:', error);
+    console.error('Contact form error:', error);
     return NextResponse.json({ error: 'Failed to send message. Please try again later.' }, { status: 500 });
   }
 } 

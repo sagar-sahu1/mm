@@ -4,7 +4,7 @@ import type { Quiz } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { CheckCircle, XCircle, Download, RotateCcw, Share2, Home, Trophy, LayoutDashboard, ShieldAlert } from "lucide-react";
+import { CheckCircle, XCircle, Download, RotateCcw, Share2, Home, Trophy, LayoutDashboard, ShieldAlert, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
 import { QuizDisplay } from "./QuizDisplay";
@@ -12,19 +12,57 @@ import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import { generateAnswerExplanation } from '@/ai/flows/generate-answer-explanation';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { getUserProfile, getCheatingFlagsForQuiz } from '@/lib/firestoreUtils';
+import type { UserProfileFirestoreData, CheatingActivityLog } from '@/types';
+import { format } from 'date-fns';
 
 interface ResultDisplayProps {
   quiz: Quiz;
 }
 
+// Add a list of motivational Gita quotes
+const GITA_QUOTES = [
+  "You have the right to work, but never to the fruit of work. - Bhagavad Gita 2.47",
+  "Change is the law of the universe. You can be a millionaire, or a pauper in an instant. - Bhagavad Gita 15.15",
+  "There is neither this world, nor the world beyond. Happiness comes only to those who dedicate themselves to a cause. - Bhagavad Gita 2.70",
+  "A person can rise through the efforts of his own mind; or draw himself down, in the same manner. Because each person is his own friend or enemy. - Bhagavad Gita 6.5",
+  "Set your heart upon your work but never its reward. - Bhagavad Gita 2.47",
+  "No one who does good work will ever come to a bad end, either here or in the world to come. - Bhagavad Gita 6.40",
+  "Man is made by his belief. As he believes, so he is. - Bhagavad Gita 17.3",
+];
+
 export function ResultDisplay({ quiz }: ResultDisplayProps) {
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   const scorePercentage = quiz.score !== undefined && quiz.questions.length > 0
     ? Math.round((quiz.score / quiz.questions.length) * 100)
     : 0;
 
   const [explanations, setExplanations] = useState<string[]>([]);
   const [loadingExplanations, setLoadingExplanations] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfileFirestoreData | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [cheatingLogs, setCheatingLogs] = useState<CheatingActivityLog[] | null>(null);
+  const [loadingCheatingLogs, setLoadingCheatingLogs] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchProfile() {
+      if (currentUser?.uid) {
+        setLoadingProfile(true);
+        const profile = await getUserProfile(currentUser.uid);
+        if (isMounted) setUserProfile(profile);
+        setLoadingProfile(false);
+      } else {
+        setUserProfile(null);
+        setLoadingProfile(false);
+      }
+    }
+    fetchProfile();
+    return () => { isMounted = false; };
+  }, [currentUser]);
 
   useEffect(() => {
     let isMounted = true;
@@ -50,42 +88,117 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
     return () => { isMounted = false; };
   }, [quiz.questions]);
 
-  const handleDownloadPdf = () => {
+  // Fetch cheating logs
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchLogs() {
+      if (currentUser?.uid && quiz.id) {
+        setLoadingCheatingLogs(true);
+        try {
+          const logs = await getCheatingFlagsForQuiz(quiz.id, currentUser.uid);
+          if (isMounted) setCheatingLogs(logs);
+        } catch {
+          if (isMounted) setCheatingLogs([]);
+        }
+        setLoadingCheatingLogs(false);
+      } else {
+        setCheatingLogs([]);
+        setLoadingCheatingLogs(false);
+      }
+    }
+    fetchLogs();
+    return () => { isMounted = false; };
+  }, [currentUser, quiz.id]);
+
+  const handleDownloadPdf = async () => {
+    if (loadingExplanations || explanations.some(e => !e) || loadingProfile || loadingCheatingLogs) {
+      toast({
+        title: 'Your result is generating, please wait...',
+        description: 'We are preparing your PDF with all answer explanations, your profile, and activity logs.',
+      });
+      setIsGeneratingPdf(true);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      setIsGeneratingPdf(false);
+    }
     try {
       const doc = new jsPDF();
       let yPosition = 20;
       const pageHeight = doc.internal.pageSize.height;
       const margin = 20;
       const lineHeight = 7; // Approximate line height
+      const pageWidth = doc.internal.pageSize.width;
+
+      // Format quiz date/time
+      let quizDate = quiz.completedAt ? new Date(quiz.completedAt) : new Date();
+      const dateStr = format(quizDate, 'yyyy-MM-dd HH:mm');
+      // Add date/time to upper right
+      doc.setFontSize(10);
+      doc.setTextColor(120, 120, 120);
+      doc.text(dateStr, pageWidth - margin, yPosition, { align: 'right' });
+      doc.setTextColor(0, 0, 0);
+      yPosition += lineHeight;
 
       // Add title
       doc.setFontSize(18);
       doc.text(`Quiz Results: ${quiz.topic}`, margin, yPosition);
       yPosition += lineHeight * 2;
 
-      // Add subtopic and difficulty if available
-      let details = `Difficulty: ${quiz.difficulty}`;
-      if (quiz.subtopic) details += ` | Subtopic: ${quiz.subtopic}`;
+      // Add user profile info
       doc.setFontSize(12);
-      doc.text(details, margin, yPosition);
+      doc.setTextColor(0, 0, 128);
+      doc.text('User Profile:', margin, yPosition);
+      yPosition += lineHeight;
+      if (userProfile) {
+        if (userProfile.displayName) {
+          doc.text(`Name: ${userProfile.displayName}`, margin + 5, yPosition);
+          yPosition += lineHeight;
+        }
+        if (userProfile.email) {
+          doc.text(`Email: ${userProfile.email}`, margin + 5, yPosition);
+          yPosition += lineHeight;
+        }
+        if (userProfile.bio) {
+          const bioLines = doc.splitTextToSize(`Bio: ${userProfile.bio}`, doc.internal.pageSize.width - margin * 2 - 5);
+          doc.text(bioLines, margin + 5, yPosition);
+          yPosition += bioLines.length * (lineHeight - 1);
+        }
+        if (userProfile.birthdate) {
+          doc.text(`Birthdate: ${userProfile.birthdate}`, margin + 5, yPosition);
+          yPosition += lineHeight;
+        }
+      } else {
+        doc.text('User profile not available.', margin + 5, yPosition);
+        yPosition += lineHeight;
+      }
+      doc.setTextColor(0, 0, 0);
       yPosition += lineHeight;
 
+      // Add quiz parameters
+      doc.setFontSize(12);
+      doc.text('Quiz Parameters:', margin, yPosition);
+      yPosition += lineHeight;
+      doc.text(`Topic: ${quiz.topic}`, margin + 5, yPosition);
+      yPosition += lineHeight;
+      if (quiz.subtopic) {
+        doc.text(`Subtopic: ${quiz.subtopic}`, margin + 5, yPosition);
+        yPosition += lineHeight;
+      }
+      doc.text(`Difficulty: ${quiz.difficulty}`, margin + 5, yPosition);
+      yPosition += lineHeight;
+      if (quiz.timeLimitMinutes) {
+        doc.text(`Time Limit: ${quiz.timeLimitMinutes} min`, margin + 5, yPosition);
+        yPosition += lineHeight;
+      }
       if (quiz.challengerName) {
-        doc.text(`Challenged by: ${quiz.challengerName}`, margin, yPosition);
+        doc.text(`Challenged by: ${quiz.challengerName}`, margin + 5, yPosition);
         yPosition += lineHeight;
       }
-      
-      if (quiz.quizTerminationReason && quiz.quizTerminationReason !== "completed") {
-        doc.setTextColor(255, 0, 0); // Red for termination reason
-        let reasonText = "Quiz Terminated: ";
-        if (quiz.quizTerminationReason === "cheating") reasonText += "Suspicious Activity";
-        else if (quiz.quizTerminationReason === "time_up") reasonText += "Time Ran Out";
-        else reasonText += quiz.quizTerminationReason;
-        doc.text(reasonText, margin, yPosition);
-        yPosition += lineHeight;
-        doc.setTextColor(0, 0, 0); // Reset color
+      if (quiz.additionalInstructions) {
+        const instrLines = doc.splitTextToSize(`Instructions: ${quiz.additionalInstructions}`, doc.internal.pageSize.width - margin * 2 - 5);
+        doc.text(instrLines, margin + 5, yPosition);
+        yPosition += instrLines.length * (lineHeight - 1);
       }
-
+      yPosition += lineHeight;
 
       // Add score
       doc.setFontSize(14);
@@ -136,15 +249,53 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
           yPosition += correctAnswerLines.length * (lineHeight - 1);
         }
 
-        // Show explanation
+        // Show explanation (always)
         doc.setTextColor(0, 0, 0);
-        if (explanations[index]) {
-          const explanationLines = doc.splitTextToSize('Explanation: ' + explanations[index], doc.internal.pageSize.width - margin * 2);
-          doc.text(explanationLines, margin + 5, yPosition);
-          yPosition += explanationLines.length * (lineHeight - 1);
-        }
+        const explanation = explanations[index] || 'Explanation not available.';
+        const explanationLines = doc.splitTextToSize('Explanation: ' + explanation, doc.internal.pageSize.width - margin * 2);
+        doc.text(explanationLines, margin + 5, yPosition);
+        yPosition += explanationLines.length * (lineHeight - 1);
+
         yPosition += lineHeight * 1.5;
       });
+
+      // Add a motivational Gita quote at the end
+      if (yPosition > pageHeight - margin * 4) {
+        doc.addPage();
+        yPosition = margin;
+      }
+      doc.setFontSize(12);
+      doc.setTextColor(128, 0, 128);
+      doc.text('Motivational Gita Quote:', margin, yPosition);
+      yPosition += lineHeight;
+      const quote = GITA_QUOTES[Math.floor(Math.random() * GITA_QUOTES.length)];
+      const quoteLines = doc.splitTextToSize(quote, doc.internal.pageSize.width - margin * 2);
+      doc.text(quoteLines, margin + 5, yPosition);
+      yPosition += quoteLines.length * (lineHeight - 1);
+      doc.setTextColor(0, 0, 0);
+
+      // Add suspicious activity/cheating log
+      if (yPosition > pageHeight - margin * 4) {
+        doc.addPage();
+        yPosition = margin;
+      }
+      doc.setFontSize(12);
+      doc.setTextColor(220, 53, 69);
+      doc.text('Suspicious Activity Log:', margin, yPosition);
+      yPosition += lineHeight;
+      doc.setTextColor(0, 0, 0);
+      if (!cheatingLogs || cheatingLogs.length === 0) {
+        doc.text('N.A.', margin + 5, yPosition);
+        yPosition += lineHeight;
+      } else {
+        cheatingLogs.forEach((log, idx) => {
+          const logTime = log.timestamp && typeof log.timestamp.toDate === 'function' ? format(log.timestamp.toDate(), 'yyyy-MM-dd HH:mm:ss') : '';
+          const logText = `${idx + 1}. [${log.activityType}] ${log.details || ''} ${logTime ? `at ${logTime}` : ''}`;
+          const logLines = doc.splitTextToSize(logText, doc.internal.pageSize.width - margin * 2 - 5);
+          doc.text(logLines, margin + 5, yPosition);
+          yPosition += logLines.length * (lineHeight - 1);
+        });
+      }
 
       doc.save(`MindMash_Quiz_Results_${quiz.topic.replace(/\s+/g, '_')}.pdf`);
       toast({
@@ -226,8 +377,12 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
              <Button onClick={handleShareResults} variant="outline" size="lg">
               <Share2 className="mr-2 h-5 w-5" /> Share Results
             </Button>
-            <Button onClick={handleDownloadPdf} variant="outline" size="lg">
-              <Download className="mr-2 h-5 w-5" /> Download PDF
+            <Button onClick={handleDownloadPdf} variant="outline" size="lg" disabled={isGeneratingPdf || loadingExplanations || explanations.some(e => !e) || loadingProfile || loadingCheatingLogs}>
+              {isGeneratingPdf || loadingExplanations || explanations.some(e => !e) || loadingProfile || loadingCheatingLogs ? (
+                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Generating PDF...</>
+              ) : (
+                <><Download className="mr-2 h-5 w-5" /> Download PDF</>
+              )}
             </Button>
             <Button asChild variant="secondary" size="lg">
               <Link href="/dashboard">
@@ -267,12 +422,15 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
                       question={q}
                       questionNumber={index + 1}
                       totalQuestions={quiz.questions.length}
-                      onAnswer={() => {}} 
-                      isSubmitted={true} 
-                      showFeedback={true} 
+                      onAnswer={() => {}}
+                      isSubmitted={true}
+                      showFeedback={true}
                       perQuestionDuration={0} // No timer in results view
                       onPerQuestionTimeUp={() => {}} // No action
                       timerKey={`result-q-${q.id}`}
+                      speakQuestion={() => {}}
+                      isSpeaking={false}
+                      isTextToSpeechEnabled={false}
                     />
                     <div className="mt-2 text-sm text-muted-foreground">
                       {loadingExplanations ? 'Loading explanation...' : explanations[index] || 'Explanation not available.'}
