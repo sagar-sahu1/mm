@@ -126,6 +126,18 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
     // eslint-disable-next-line
   }, [stream, motionWarnings]);
 
+  // Assign stream to both video elements whenever stream or refs change
+  useEffect(() => {
+    if (stream) {
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      if (previewRef.current) {
+        previewRef.current.srcObject = stream;
+      }
+    }
+  }, [stream, videoRef, previewRef]);
+
   // Hidden video/canvas, plus optional preview
   return (
     <>
@@ -133,17 +145,16 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
         <video ref={videoRef} autoPlay playsInline muted />
         <canvas ref={canvasRef} />
       </div>
-      {showPreview && stream && (
-        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 50 }}>
-          <video
-            ref={previewRef}
-            autoPlay
-            playsInline
-            muted
-            style={{ width: 120, height: 90, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.25)', background: '#222', objectFit: 'cover' }}
-          />
-        </div>
-      )}
+      {/* Always render preview video, but only show if showPreview and stream exist */}
+      <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 50, display: showPreview && stream ? 'block' : 'none' }}>
+        <video
+          ref={previewRef}
+          autoPlay
+          playsInline
+          muted
+          style={{ width: 120, height: 90, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.25)', background: '#222', objectFit: 'cover' }}
+        />
+      </div>
     </>
   );
 };
