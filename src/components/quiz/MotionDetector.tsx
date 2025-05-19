@@ -125,30 +125,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
       } else {
         blankFrameCount = 0;
       }
-      // Normal pixel difference motion detection
-      if (prevImageData.current) {
-        let diff = 0;
-        for (let i = 0; i < currImageData.data.length; i += 4) {
-          const currGray = (currImageData.data[i] + currImageData.data[i+1] + currImageData.data[i+2]) / 3;
-          const prevGray = (prevImageData.current.data[i] + prevImageData.current.data[i+1] + prevImageData.current.data[i+2]) / 3;
-          if (Math.abs(currGray - prevGray) > motionThreshold) diff++;
-        }
-        if (diff > (width * height * 0.01)) {
-          const newWarnings = motionWarnings + 1;
-          setMotionWarnings(newWarnings);
-          if (cheatingLog && typeof cheatingLog === "object") {
-            cheatingLog.motion = cheatingLog.motion || [];
-            cheatingLog.motion.push({
-              timestamp: Date.now(),
-              diffPixels: diff,
-            });
-          }
-          onMotionWarning(newWarnings);
-          if (newWarnings >= maxWarnings) {
-            onMaxWarnings();
-          }
-        }
-      }
+      // Do NOT count normal motion as suspicious activity anymore
       prevImageData.current = currImageData;
     };
     intervalId.current = setInterval(detectMotion, intervalMs);
