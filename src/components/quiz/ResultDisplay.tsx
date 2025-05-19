@@ -135,7 +135,7 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
       if (userProfile) {
         if (userProfile.displayName) userInfoLines.push(`Name: ${userProfile.displayName}`);
         if (userProfile.email) userInfoLines.push(`Email: ${userProfile.email}`);
-        if (userProfile.birthdate) userInfoLines.push(`Birthdate: ${userProfile.birthdate}`);
+        if (currentUser?.uid) userInfoLines.push(`User ID: ${currentUser.uid}`);
         if (userProfile.bio) userInfoLines.push(`Bio: ${userProfile.bio}`);
       } else {
         userInfoLines.push('User profile not available.');

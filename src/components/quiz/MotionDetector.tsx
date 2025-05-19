@@ -87,25 +87,55 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
     canvas.width = width;
     canvas.height = height;
 
+    let blankFrameCount = 0;
+    const BLANK_FRAME_LIMIT = 2; // 2 intervals (4 seconds)
+
     const detectMotion = () => {
       if (!canvas || !video) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(video, 0, 0, width, height);
       const currImageData = ctx.getImageData(0, 0, width, height);
+      // Check for mostly black frame (user left camera or covered it)
+      let blackPixels = 0;
+      for (let i = 0; i < currImageData.data.length; i += 4) {
+        const avg = (currImageData.data[i] + currImageData.data[i+1] + currImageData.data[i+2]) / 3;
+        if (avg < 10) blackPixels++;
+      }
+      if (blackPixels > width * height * 0.7) { // >70% black
+        blankFrameCount++;
+        if (blankFrameCount >= BLANK_FRAME_LIMIT) {
+          const newWarnings = motionWarnings + 1;
+          setMotionWarnings(newWarnings);
+          if (cheatingLog && typeof cheatingLog === "object") {
+            cheatingLog.motion = cheatingLog.motion || [];
+            cheatingLog.motion.push({
+              timestamp: Date.now(),
+              type: 'blank_frame',
+              blackPixels,
+            });
+          }
+          onMotionWarning(newWarnings);
+          if (newWarnings >= maxWarnings) {
+            onMaxWarnings();
+          }
+          blankFrameCount = 0;
+        }
+        return;
+      } else {
+        blankFrameCount = 0;
+      }
+      // Normal pixel difference motion detection
       if (prevImageData.current) {
         let diff = 0;
         for (let i = 0; i < currImageData.data.length; i += 4) {
-          // Simple grayscale diff
           const currGray = (currImageData.data[i] + currImageData.data[i+1] + currImageData.data[i+2]) / 3;
           const prevGray = (prevImageData.current.data[i] + prevImageData.current.data[i+1] + prevImageData.current.data[i+2]) / 3;
           if (Math.abs(currGray - prevGray) > motionThreshold) diff++;
         }
-        // If more than 1% of pixels changed, count as motion
         if (diff > (width * height * 0.01)) {
           const newWarnings = motionWarnings + 1;
           setMotionWarnings(newWarnings);
-          // Log event
           if (cheatingLog && typeof cheatingLog === "object") {
             cheatingLog.motion = cheatingLog.motion || [];
             cheatingLog.motion.push({
