@@ -10,6 +10,7 @@ import { siteConfig } from '@/config/site';
 import { QuizProvider } from '@/contexts/QuizContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ClientAnalyticsInitializer } from '@/components/layout/ClientAnalyticsInitializer';
+import { Suspense } from 'react';
 
 // Configure Playfair Display as primary font
 const playfair = Playfair_Display({
@@ -62,18 +63,20 @@ export default function RootLayout({
           defaultTheme="system"
           storageKey="mindmash-theme"
         >
-          <AuthProvider>
-            <QuizProvider>
-              <ClientAnalyticsInitializer />
-              <Header />
-              <main className="flex-grow container py-8">
-                {children}
-              </main>
-              <Footer />
-              <SettingsButton />
-              <Toaster />
-            </QuizProvider>
-          </AuthProvider>
+          <Suspense fallback={null}>
+            <AuthProvider>
+              <QuizProvider>
+                <ClientAnalyticsInitializer />
+                <Header />
+                <main className="flex-grow container py-8">
+                  {children}
+                </main>
+                <Footer />
+                <SettingsButton />
+                <Toaster />
+              </QuizProvider>
+            </AuthProvider>
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>
