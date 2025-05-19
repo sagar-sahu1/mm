@@ -1,17 +1,13 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { name, email, message } = req.body;
-  if (!name || !email || !message) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
+export async function POST(req: NextRequest) {
   try {
+    const { name, email, message } = await req.json();
+    if (!name || !email || !message) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT),
@@ -31,9 +27,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     await transporter.sendMail(mailOptions);
-    return res.status(200).json({ success: true });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Contact form email error:', error);
-    return res.status(500).json({ error: 'Failed to send message. Please try again later.' });
+    return NextResponse.json({ error: 'Failed to send message. Please try again later.' }, { status: 500 });
   }
 } 

@@ -138,24 +138,6 @@ export default function LeaderboardPage() {
       {/* Top 3 users */}
       {users.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-4 items-end mb-12">
-          {/* Second place */}
-          {users.length > 1 && (
-            <Card className="flex flex-col items-center p-6 text-center bg-gradient-to-br from-purple-400/10 to-blue-400/10 border-2 border-purple-500/30 shadow-lg order-first md:order-none">
-              <div className="bg-purple-500/20 rounded-full p-3 mb-4">
-                <Trophy className="h-16 w-16 text-gray-300" />
-              </div>
-              <Avatar className="h-28 w-28 border-4 border-purple-400 shadow-md">
-                <AvatarImage src={users[1].photoURL || undefined} alt={users[1].displayName || 'User'} />
-                <AvatarFallback className="text-2xl font-semibold bg-purple-500/20 text-purple-200">
-                   {users[1].displayName?.charAt(0) || 'A'}
-                </AvatarFallback>
-              </Avatar>
-              <h3 className="text-2xl font-semibold mt-4 text-purple-300">#2</h3>
-              <h4 className="text-xl font-semibold mt-2">{users[1].displayName || 'Anonymous User'}</h4>
-              <p className="text-3xl font-bold text-primary mt-2">{users[1].totalScore || 0} pts</p>
-            </Card>
-          )}
-          
           {/* First place */}
           {users.length > 0 && (
             <Card className="flex flex-col items-center p-8 text-center bg-gradient-to-br from-primary/20 to-blue-500/20 border-2 border-primary/50 shadow-xl z-10">
@@ -173,7 +155,23 @@ export default function LeaderboardPage() {
               <p className="text-4xl font-bold text-primary mt-2">{users[0].totalScore || 0} pts</p>
             </Card>
           )}
-          
+          {/* Second place */}
+          {users.length > 1 && (
+            <Card className="flex flex-col items-center p-6 text-center bg-gradient-to-br from-purple-400/10 to-blue-400/10 border-2 border-purple-500/30 shadow-lg">
+              <div className="bg-purple-500/20 rounded-full p-3 mb-4">
+                <Trophy className="h-16 w-16 text-gray-300" />
+              </div>
+              <Avatar className="h-28 w-28 border-4 border-purple-400 shadow-md">
+                <AvatarImage src={users[1].photoURL || undefined} alt={users[1].displayName || 'User'} />
+                <AvatarFallback className="text-2xl font-semibold bg-purple-500/20 text-purple-200">
+                   {users[1].displayName?.charAt(0) || 'A'}
+                </AvatarFallback>
+              </Avatar>
+              <h3 className="text-2xl font-semibold mt-4 text-purple-300">#2</h3>
+              <h4 className="text-xl font-semibold mt-2">{users[1].displayName || 'Anonymous User'}</h4>
+              <p className="text-3xl font-bold text-primary mt-2">{users[1].totalScore || 0} pts</p>
+            </Card>
+          )}
           {/* Third place */}
           {users.length > 2 && (
             <Card className="flex flex-col items-center p-6 text-center bg-gradient-to-br from-cyan-400/10 to-green-400/10 border-2 border-cyan-500/30 shadow-lg">

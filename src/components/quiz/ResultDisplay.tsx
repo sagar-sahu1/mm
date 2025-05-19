@@ -95,49 +95,55 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
       // Add questions and answers
       doc.setFontSize(12);
       quiz.questions.forEach((q, index) => {
-        if (yPosition > pageHeight - margin * 2.5) { // Check for page break, ensure more space
+        if (yPosition > pageHeight - margin * 2.5) {
           doc.addPage();
           yPosition = margin;
         }
-
         doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0); 
-        
+        doc.setTextColor(0, 0, 0);
         const questionText = `Q${index + 1}: ${q.question}`;
         const questionLines = doc.splitTextToSize(questionText, doc.internal.pageSize.width - margin * 2);
         doc.text(questionLines, margin, yPosition);
-        yPosition += questionLines.length * (lineHeight -1); // Slightly reduce line height for wrapped text
+        yPosition += questionLines.length * (lineHeight - 1);
 
-        const userAnswerText = `Your Answer: ${q.userAnswer || "Not Answered"}`;
-         // User answer color: Red if wrong & answered, Gray if unanswered, Black if correct (implicitly handled by default)
-        if (!q.isCorrect && q.userAnswer) {
-            doc.setTextColor(220, 53, 69); // Destructive/Red
-        } else if (!q.userAnswer) {
-            doc.setTextColor(108, 117, 125); // Muted/Gray
+        // Show answer status
+        let status = '';
+        if (!q.userAnswer) {
+          status = 'Skipped';
+          doc.setTextColor(108, 117, 125); // Muted/Gray
+        } else if (q.isCorrect) {
+          status = 'Correct';
+          doc.setTextColor(25, 135, 84); // Green
         } else {
-            doc.setTextColor(25, 135, 84); // Success/Green for correct user answer
+          status = 'Incorrect';
+          doc.setTextColor(220, 53, 69); // Red
         }
+        doc.text(`Status: ${status}`, margin + 5, yPosition);
+        yPosition += lineHeight;
+
+        // Show user answer
+        const userAnswerText = `Your Answer: ${q.userAnswer || 'Not Answered'}`;
         const userAnswerLines = doc.splitTextToSize(userAnswerText, doc.internal.pageSize.width - margin * 2);
         doc.text(userAnswerLines, margin + 5, yPosition);
-        yPosition += userAnswerLines.length * (lineHeight-1);
+        yPosition += userAnswerLines.length * (lineHeight - 1);
 
-
-        if (!q.isCorrect) {
+        // Show correct answer if incorrect or skipped
+        if (!q.isCorrect || !q.userAnswer) {
           doc.setTextColor(25, 135, 84); // Green for correct answer
           const correctAnswerText = `Correct Answer: ${q.correctAnswer}`;
           const correctAnswerLines = doc.splitTextToSize(correctAnswerText, doc.internal.pageSize.width - margin * 2);
           doc.text(correctAnswerLines, margin + 5, yPosition);
-          yPosition += correctAnswerLines.length * (lineHeight-1);
+          yPosition += correctAnswerLines.length * (lineHeight - 1);
         }
-        
-        doc.setTextColor(0,0,0); // Reset to black
-        yPosition += lineHeight * 1.5; // Extra space between questions
 
+        // Show explanation
+        doc.setTextColor(0, 0, 0);
         if (explanations[index]) {
           const explanationLines = doc.splitTextToSize('Explanation: ' + explanations[index], doc.internal.pageSize.width - margin * 2);
           doc.text(explanationLines, margin + 5, yPosition);
-          yPosition += explanationLines.length * (lineHeight-1);
+          yPosition += explanationLines.length * (lineHeight - 1);
         }
+        yPosition += lineHeight * 1.5;
       });
 
       doc.save(`MindMash_Quiz_Results_${quiz.topic.replace(/\s+/g, '_')}.pdf`);
