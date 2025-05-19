@@ -37,6 +37,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
   const intervalId = useRef<NodeJS.Timeout | null>(null);
+  const [lastWarningTime, setLastWarningTime] = useState<number>(0);
 
   // Request webcam access on mount
   useEffect(() => {
@@ -89,6 +90,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
 
     let blankFrameCount = 0;
     const BLANK_FRAME_LIMIT = 2; // 2 intervals (4 seconds)
+    let warningTimeout: NodeJS.Timeout | null = null;
 
     const detectMotion = () => {
       if (!canvas || !video) return;
@@ -102,38 +104,48 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
         const avg = (currImageData.data[i] + currImageData.data[i+1] + currImageData.data[i+2]) / 3;
         if (avg < 10) blackPixels++;
       }
+      const now = Date.now();
       if (blackPixels > width * height * 0.7) { // >70% black
         blankFrameCount++;
         if (blankFrameCount >= BLANK_FRAME_LIMIT) {
-          const newWarnings = motionWarnings + 1;
-          setMotionWarnings(newWarnings);
-          if (cheatingLog && typeof cheatingLog === "object") {
-            cheatingLog.motion = cheatingLog.motion || [];
-            cheatingLog.motion.push({
-              timestamp: Date.now(),
-              type: 'blank_frame',
-              blackPixels,
-            });
+          // Only allow one warning per 90 seconds
+          if (now - lastWarningTime > 90000) {
+            const newWarnings = motionWarnings + 1;
+            setMotionWarnings(newWarnings);
+            setLastWarningTime(now);
+            if (cheatingLog && typeof cheatingLog === "object") {
+              cheatingLog.motion = cheatingLog.motion || [];
+              cheatingLog.motion.push({
+                timestamp: now,
+                type: 'blank_frame',
+                blackPixels,
+              });
+            }
+            onMotionWarning(newWarnings);
+            if (newWarnings >= maxWarnings) {
+              onMaxWarnings();
+            }
+            blankFrameCount = 0;
+            // After a warning, pause detection for 90 seconds
+            if (intervalId.current) clearInterval(intervalId.current);
+            warningTimeout = setTimeout(() => {
+              intervalId.current = setInterval(detectMotion, intervalMs);
+            }, 90000);
           }
-          onMotionWarning(newWarnings);
-          if (newWarnings >= maxWarnings) {
-            onMaxWarnings();
-          }
-          blankFrameCount = 0;
         }
         return;
       } else {
         blankFrameCount = 0;
       }
-      // Do NOT count normal motion as suspicious activity anymore
       prevImageData.current = currImageData;
     };
     intervalId.current = setInterval(detectMotion, intervalMs);
     return () => {
       if (intervalId.current) clearInterval(intervalId.current);
+      if (warningTimeout) clearTimeout(warningTimeout);
     };
     // eslint-disable-next-line
-  }, [stream, motionWarnings]);
+  }, [stream, motionWarnings, lastWarningTime]);
 
   // Assign stream to both video elements whenever stream or refs change
   useEffect(() => {
