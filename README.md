@@ -80,7 +80,3 @@ MindMash is a modern, accessible, and responsive quiz platform built with Next.j
 Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
 
 ---
-
-## 📜 License
-MIT
-
