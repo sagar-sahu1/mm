@@ -8,6 +8,7 @@ interface MotionDetectorProps {
   intervalMs?: number;
   maxWarnings?: number;
   motionThreshold?: number; // 0-255, higher = less sensitive
+  showPreview?: boolean;
 }
 
 /**
@@ -23,9 +24,10 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
   onMotionWarning,
   onMaxWarnings,
   cheatingLog,
-  intervalMs = 2000,
+  intervalMs = 2000, // 2 seconds
   maxWarnings = 3,
   motionThreshold = 40, // pixel diff threshold
+  showPreview = false,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -120,12 +122,25 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
     // eslint-disable-next-line
   }, [stream, motionWarnings]);
 
-  // Hidden video/canvas
+  // Hidden video/canvas, plus optional preview
   return (
-    <div style={{ display: "none" }}>
-      <video ref={videoRef} autoPlay playsInline muted />
-      <canvas ref={canvasRef} />
-    </div>
+    <>
+      <div style={{ display: "none" }}>
+        <video ref={videoRef} autoPlay playsInline muted />
+        <canvas ref={canvasRef} />
+      </div>
+      {showPreview && stream && (
+        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 50 }}>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{ width: 120, height: 90, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.25)', background: '#222' }}
+          />
+        </div>
+      )}
+    </>
   );
 };
 

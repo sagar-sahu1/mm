@@ -642,6 +642,7 @@ export default function QuizPage() {
           onMotionWarning={handleMotionWarning}
           onMaxWarnings={handleMaxMotionWarnings}
           cheatingLog={{}}
+          showPreview={true}
         />
       )}
       {/* Block UI if webcam denied */}

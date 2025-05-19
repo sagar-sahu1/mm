@@ -122,162 +122,108 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
     }
     try {
       const doc = new jsPDF();
-      let yPosition = 20;
-      const pageHeight = doc.internal.pageSize.height;
       const margin = 20;
-      const lineHeight = 7; // Approximate line height
       const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+      const lineHeight = 7;
+      let yPosition = margin + 10;
 
-      // Format quiz date/time
-      let quizDate = quiz.completedAt ? new Date(quiz.completedAt) : new Date();
-      const dateStr = format(quizDate, 'yyyy-MM-dd HH:mm');
-      // Add date/time to upper right
-      doc.setFontSize(10);
-      doc.setTextColor(120, 120, 120);
-      doc.text(dateStr, pageWidth - margin, yPosition, { align: 'right' });
-      doc.setTextColor(0, 0, 0);
-      yPosition += lineHeight;
-
-      // Add title
-      doc.setFontSize(18);
-      doc.text(`Quiz Results: ${quiz.topic}`, margin, yPosition);
-      yPosition += lineHeight * 2;
-
-      // Add user profile info
+      // User info (left) and quiz info (right) at the top
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 128);
-      doc.text('User Profile:', margin, yPosition);
-      yPosition += lineHeight;
+      let userInfoLines = [];
       if (userProfile) {
-        if (userProfile.displayName) {
-          doc.text(`Name: ${userProfile.displayName}`, margin + 5, yPosition);
-          yPosition += lineHeight;
-        }
-        if (userProfile.email) {
-          doc.text(`Email: ${userProfile.email}`, margin + 5, yPosition);
-          yPosition += lineHeight;
-        }
-        if (userProfile.bio) {
-          const bioLines = doc.splitTextToSize(`Bio: ${userProfile.bio}`, doc.internal.pageSize.width - margin * 2 - 5);
-          doc.text(bioLines, margin + 5, yPosition);
-          yPosition += bioLines.length * (lineHeight - 1);
-        }
-        if (userProfile.birthdate) {
-          doc.text(`Birthdate: ${userProfile.birthdate}`, margin + 5, yPosition);
-          yPosition += lineHeight;
-        }
+        if (userProfile.displayName) userInfoLines.push(`Name: ${userProfile.displayName}`);
+        if (userProfile.email) userInfoLines.push(`Email: ${userProfile.email}`);
+        if (userProfile.birthdate) userInfoLines.push(`Birthdate: ${userProfile.birthdate}`);
+        if (userProfile.bio) userInfoLines.push(`Bio: ${userProfile.bio}`);
       } else {
-        doc.text('User profile not available.', margin + 5, yPosition);
-        yPosition += lineHeight;
+        userInfoLines.push('User profile not available.');
       }
-      doc.setTextColor(0, 0, 0);
-      yPosition += lineHeight;
+      let quizInfoLines = [
+        `Topic: ${quiz.topic}`,
+        `Difficulty: ${quiz.difficulty}`,
+        `Score: ${quiz.score}/${quiz.questions.length} (${scorePercentage}%)`
+      ];
+      if (quiz.subtopic) quizInfoLines.push(`Subtopic: ${quiz.subtopic}`);
+      if (quiz.timeLimitMinutes) quizInfoLines.push(`Time Limit: ${quiz.timeLimitMinutes} min`);
+      if (quiz.challengerName) quizInfoLines.push(`Challenged by: ${quiz.challengerName}`);
+      if (quiz.additionalInstructions) quizInfoLines.push(`Instructions: ${quiz.additionalInstructions}`);
 
-      // Add quiz parameters
+      // Draw user info (left)
       doc.setFontSize(12);
-      doc.text('Quiz Parameters:', margin, yPosition);
-      yPosition += lineHeight;
-      doc.text(`Topic: ${quiz.topic}`, margin + 5, yPosition);
-      yPosition += lineHeight;
-      if (quiz.subtopic) {
-        doc.text(`Subtopic: ${quiz.subtopic}`, margin + 5, yPosition);
-        yPosition += lineHeight;
-      }
-      doc.text(`Difficulty: ${quiz.difficulty}`, margin + 5, yPosition);
-      yPosition += lineHeight;
-      if (quiz.timeLimitMinutes) {
-        doc.text(`Time Limit: ${quiz.timeLimitMinutes} min`, margin + 5, yPosition);
-        yPosition += lineHeight;
-      }
-      if (quiz.challengerName) {
-        doc.text(`Challenged by: ${quiz.challengerName}`, margin + 5, yPosition);
-        yPosition += lineHeight;
-      }
-      if (quiz.additionalInstructions) {
-        const instrLines = doc.splitTextToSize(`Instructions: ${quiz.additionalInstructions}`, doc.internal.pageSize.width - margin * 2 - 5);
-        doc.text(instrLines, margin + 5, yPosition);
-        yPosition += instrLines.length * (lineHeight - 1);
-      }
-      yPosition += lineHeight;
+      doc.setTextColor(0, 0, 128);
+      doc.text(userInfoLines, margin, yPosition);
+      // Draw quiz info (right)
+      doc.setFontSize(12);
+      doc.setTextColor(0, 128, 0);
+      doc.text(quizInfoLines, pageWidth - margin, yPosition, { align: 'right' });
+      yPosition += Math.max(userInfoLines.length, quizInfoLines.length) * lineHeight + 10;
+      doc.setTextColor(0, 0, 0);
 
-      // Add score
-      doc.setFontSize(14);
-      doc.text(`Score: ${quiz.score}/${quiz.questions.length} (${scorePercentage}%)`, margin, yPosition);
+      // Centered Quiz Title
+      doc.setFontSize(18);
+      doc.text(`Quiz Results`, pageWidth / 2, yPosition, { align: 'center' });
       yPosition += lineHeight * 2;
 
-      // Add questions and answers
+      // Questions and answers (centered block)
       doc.setFontSize(12);
       quiz.questions.forEach((q, index) => {
-        if (yPosition > pageHeight - margin * 2.5) {
+        if (yPosition > pageHeight - margin * 3) {
           doc.addPage();
-          yPosition = margin;
+          yPosition = margin + 10;
         }
         doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0); 
+        doc.setTextColor(0, 0, 0);
         const questionText = `Q${index + 1}: ${q.question}`;
-        const questionLines = doc.splitTextToSize(questionText, doc.internal.pageSize.width - margin * 2);
-        doc.text(questionLines, margin, yPosition);
+        const questionLines = doc.splitTextToSize(questionText, pageWidth - margin * 2);
+        doc.text(questionLines, pageWidth / 2, yPosition, { align: 'center' });
         yPosition += questionLines.length * (lineHeight - 1);
 
         // Show answer status
         let status = '';
         if (!q.userAnswer) {
           status = 'Skipped';
-            doc.setTextColor(108, 117, 125); // Muted/Gray
+          doc.setTextColor(108, 117, 125);
         } else if (q.isCorrect) {
           status = 'Correct';
-          doc.setTextColor(25, 135, 84); // Green
+          doc.setTextColor(25, 135, 84);
         } else {
           status = 'Incorrect';
-          doc.setTextColor(220, 53, 69); // Red
+          doc.setTextColor(220, 53, 69);
         }
-        doc.text(`Status: ${status}`, margin + 5, yPosition);
+        doc.text(`Status: ${status}`, pageWidth / 2, yPosition, { align: 'center' });
         yPosition += lineHeight;
 
         // Show user answer
         const userAnswerText = `Your Answer: ${q.userAnswer || 'Not Answered'}`;
-        const userAnswerLines = doc.splitTextToSize(userAnswerText, doc.internal.pageSize.width - margin * 2);
-        doc.text(userAnswerLines, margin + 5, yPosition);
+        const userAnswerLines = doc.splitTextToSize(userAnswerText, pageWidth - margin * 2);
+        doc.text(userAnswerLines, pageWidth / 2, yPosition, { align: 'center' });
         yPosition += userAnswerLines.length * (lineHeight - 1);
 
         // Show correct answer if incorrect or skipped
         if (!q.isCorrect || !q.userAnswer) {
-          doc.setTextColor(25, 135, 84); // Green for correct answer
+          doc.setTextColor(25, 135, 84);
           const correctAnswerText = `Correct Answer: ${q.correctAnswer}`;
-          const correctAnswerLines = doc.splitTextToSize(correctAnswerText, doc.internal.pageSize.width - margin * 2);
-          doc.text(correctAnswerLines, margin + 5, yPosition);
+          const correctAnswerLines = doc.splitTextToSize(correctAnswerText, pageWidth - margin * 2);
+          doc.text(correctAnswerLines, pageWidth / 2, yPosition, { align: 'center' });
           yPosition += correctAnswerLines.length * (lineHeight - 1);
         }
-        
+
         // Show explanation (always)
         doc.setTextColor(0, 0, 0);
         const explanation = explanations[index] || 'Explanation not available.';
-        const explanationLines = doc.splitTextToSize('Explanation: ' + explanation, doc.internal.pageSize.width - margin * 2);
-        doc.text(explanationLines, margin + 5, yPosition);
+        const explanationLines = doc.splitTextToSize('Explanation: ' + explanation, pageWidth - margin * 2);
+        doc.text(explanationLines, pageWidth / 2, yPosition, { align: 'center' });
         yPosition += explanationLines.length * (lineHeight - 1);
 
         yPosition += lineHeight * 1.5;
       });
 
-      // Add a motivational Gita quote at the end
+      // Suspicious Activity Log (at end)
       if (yPosition > pageHeight - margin * 4) {
         doc.addPage();
-        yPosition = margin;
-      }
-      doc.setFontSize(12);
-      doc.setTextColor(128, 0, 128);
-      doc.text('Motivational Gita Quote:', margin, yPosition);
-      yPosition += lineHeight;
-      const quote = GITA_QUOTES[Math.floor(Math.random() * GITA_QUOTES.length)];
-      const quoteLines = doc.splitTextToSize(quote, doc.internal.pageSize.width - margin * 2);
-      doc.text(quoteLines, margin + 5, yPosition);
-      yPosition += quoteLines.length * (lineHeight - 1);
-      doc.setTextColor(0, 0, 0);
-
-      // Add suspicious activity/cheating log
-      if (yPosition > pageHeight - margin * 4) {
-        doc.addPage();
-        yPosition = margin;
+        yPosition = margin + 10;
       }
       doc.setFontSize(12);
       doc.setTextColor(220, 53, 69);
@@ -291,11 +237,19 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
         cheatingLogs.forEach((log, idx) => {
           const logTime = log.timestamp && typeof log.timestamp.toDate === 'function' ? format(log.timestamp.toDate(), 'yyyy-MM-dd HH:mm:ss') : '';
           const logText = `${idx + 1}. [${log.activityType}] ${log.details || ''} ${logTime ? `at ${logTime}` : ''}`;
-          const logLines = doc.splitTextToSize(logText, doc.internal.pageSize.width - margin * 2 - 5);
+          const logLines = doc.splitTextToSize(logText, pageWidth - margin * 2 - 5);
           doc.text(logLines, margin + 5, yPosition);
           yPosition += logLines.length * (lineHeight - 1);
         });
       }
+
+      // Date/time in far lower right corner
+      doc.setFontSize(10);
+      doc.setTextColor(120, 120, 120);
+      let quizDate = quiz.completedAt ? new Date(quiz.completedAt) : new Date();
+      const dateStr = format(quizDate, 'yyyy-MM-dd HH:mm');
+      doc.text(dateStr, pageWidth - margin, pageHeight - 10, { align: 'right' });
+      doc.setTextColor(0, 0, 0);
 
       doc.save(`MindMash_Quiz_Results_${quiz.topic.replace(/\s+/g, '_')}.pdf`);
       toast({
