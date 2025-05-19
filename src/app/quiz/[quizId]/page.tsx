@@ -16,6 +16,8 @@ import { logCheatingActivity, getCheatingFlagsForQuiz } from "@/lib/firestoreUti
 import type { ActivityType, QuizQuestion } from "@/types";
 
 const CHEATING_FLAG_LIMIT = 3;
+const MAX_VOICE_LOAD_ATTEMPTS = 5;
+const VOICE_LOAD_RETRY_DELAY = 500; // ms
 
 export default function QuizPage() {
   const params = useParams();
@@ -49,15 +51,30 @@ export default function QuizPage() {
   const pressedKeysRef = useRef<Set<string>>(new Set());
   const [speechError, setSpeechError] = useState<boolean>(false);
   const [waitingForSpeechClear, setWaitingForSpeechClear] = useState<boolean>(false);
+  const [ttsAvailable, setTtsAvailable] = useState(true);
+  const [userInteracted, setUserInteracted] = useState(false); // Track if user has interacted
+  const lastSpokenQuestionIndex = useRef<number | null>(null); // Track last spoken question
 
   // Get current question early
   const currentQ = activeQuiz?.questions[activeQuiz.currentQuestionIndex];
   const perQuestionDuration = activeQuiz?.perQuestionTimeSeconds || 0;
 
+  // Helper: check if voices are loaded
+  const voicesLoaded = voices && voices.length > 0;
+
   // Speak utterance function (defined before speakText)
   const speakUtterance = useCallback((text: string) => {
       if (!speechSynthesis || !isClient) return;
-
+      // Only allow if user has interacted
+      if (!userInteracted) {
+        toast({
+          title: "Text-to-Speech Blocked",
+          description: "Please click or press any key on the page before enabling text-to-speech. Chrome requires user interaction.",
+          variant: "destructive",
+          duration: 5000
+        });
+        return;
+      }
       try {
           // Create new utterance
           const utterance = new SpeechSynthesisUtterance();
@@ -69,7 +86,12 @@ export default function QuizPage() {
           // Get voices (ensure voices are loaded)
           const voices = speechSynthesis.getVoices();
           if (voices.length === 0) {
-              console.warn('No voices available for speech synthesis. Cannot speak.');
+              toast({
+                title: "Text-to-Speech Not Ready",
+                description: "Voices are not loaded yet. Please try again in a moment or reload the page.",
+                variant: "destructive",
+                duration: 5000
+              });
               setSpeechError(true); // Mark error if no voices
               setIsSpeaking(false);
               setWaitingForSpeechClear(false); // Clear waiting state
@@ -107,7 +129,8 @@ export default function QuizPage() {
           };
 
           utterance.onerror = (event) => {
-            console.error('Speech synthesis error (in speakUtterance):', event);
+            // Suppress error in devtools, optionally log as warning
+            // console.warn('Speech synthesis error (in speakUtterance):', event);
             setIsSpeaking(false);
             setSpeechError(true); // Mark that a speech error occurred
             setWaitingForSpeechClear(false); // Clear waiting state on error
@@ -122,7 +145,28 @@ export default function QuizPage() {
           setSpeechError(true); // Mark that a speech error occurred
           setWaitingForSpeechClear(false); // Clear waiting state on error
       }
-  }, [speechSynthesis, isClient, setIsSpeaking, setSpeechError, setWaitingForSpeechClear]); // Added setIsSpeaking, setSpeechError, setWaitingForSpeechClear to deps
+  }, [speechSynthesis, isClient, setIsSpeaking, setSpeechError, setWaitingForSpeechClear, userInteracted]); // Added setIsSpeaking, setSpeechError, setWaitingForSpeechClear to deps
+
+  // Improved voice loading with retry
+  const loadVoicesWithRetry = useCallback((attempt = 1) => {
+    if (!speechSynthesis) return;
+    const voices = speechSynthesis.getVoices();
+    setVoices(voices);
+    if (voices.length === 0 && attempt < MAX_VOICE_LOAD_ATTEMPTS) {
+      setTimeout(() => loadVoicesWithRetry(attempt + 1), VOICE_LOAD_RETRY_DELAY);
+    } else if (voices.length === 0) {
+      setTtsAvailable(false);
+      setSpeechError(true);
+      toast({
+        title: "Text-to-Speech Not Available",
+        description: "No voices found. Please check your browser settings or try reloading the page.",
+        variant: "destructive",
+        duration: 5000
+      });
+    } else {
+      setTtsAvailable(true);
+    }
+  }, [speechSynthesis, toast]);
 
   // Initialize client-side state and speech synthesis
   useEffect(() => {
@@ -130,40 +174,36 @@ export default function QuizPage() {
     if (typeof document !== 'undefined') {
       setIsFullScreen(!!document.fullscreenElement);
     }
-
     // Initialize speech synthesis
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const synth = window.speechSynthesis;
-      
-      // Debug: Log available voices
-      const logVoices = () => {
-        const voices = synth.getVoices();
-        console.log('Available voices:', voices.map(v => `${v.name} (${v.lang})`));
-      };
-
+      setSpeechSynthesis(synth);
       // Chrome loads voices asynchronously
       if (synth.onvoiceschanged !== undefined) {
-        synth.onvoiceschanged = logVoices;
+        synth.onvoiceschanged = () => loadVoicesWithRetry();
       }
-      logVoices();
-
-      setSpeechSynthesis(synth);
+      loadVoicesWithRetry();
     } else {
-      console.warn('Speech synthesis not supported in this browser');
+      setTtsAvailable(false);
+      setSpeechError(true);
+      toast({
+        title: "Text-to-Speech Not Supported",
+        description: "Your browser does not support text-to-speech.",
+        variant: "destructive",
+        duration: 5000
+      });
     }
-
     return () => {
       if (speechTimeoutRef.current) {
         clearTimeout(speechTimeoutRef.current);
       }
-      // Cancel any ongoing speech on unmount
       if (speechSynthesis && (speechSynthesis.speaking || speechSynthesis.paused)) {
         speechSynthesis.cancel();
-        setIsSpeaking(false); // Ensure state is reset
-        setWaitingForSpeechClear(false); // Reset waiting state on unmount
+        setIsSpeaking(false);
+        setWaitingForSpeechClear(false);
       }
     };
-  }, [speechSynthesis]); // Added speechSynthesis to dependency array
+  }, [speechSynthesis, loadVoicesWithRetry, toast]);
 
   const speakText = useCallback((text: string) => {
     if (!speechSynthesis || !isClient || waitingForSpeechClear) {
@@ -269,48 +309,62 @@ export default function QuizPage() {
 
   // Auto-read current question when it changes or when quiz loads
   useEffect(() => {
-    // Reset speech error state and waiting state when question index changes
     setSpeechError(false);
     setWaitingForSpeechClear(false);
 
-    if (!isClient || !activeQuiz || !speechSynthesis || speechError || isSpeaking || waitingForSpeechClear) return;
+    // Only auto-speak if user has interacted and TTS is enabled
+    if (!isClient || !activeQuiz || !speechSynthesis || speechError || !userInteracted || !isTextToSpeechEnabled) return;
 
-    const currentQ = activeQuiz.questions[activeQuiz.currentQuestionIndex];
-    if (isTextToSpeechEnabled && currentQ) {
+    const currentIndex = activeQuiz.currentQuestionIndex;
+    const currentQ = activeQuiz.questions[currentIndex];
+    if (
+      currentQ && voicesLoaded &&
+      lastSpokenQuestionIndex.current !== currentIndex
+    ) {
+      lastSpokenQuestionIndex.current = currentIndex;
       const questionText = currentQ.question;
       const optionsText = currentQ.options
         ?.map((opt, index) => `Option ${index + 1}: ${opt}`)
         .join('. ');
-      
       const fullText = `${questionText}. ${optionsText || ''}`;
-      
-      // Clear any existing timeout before setting a new one
+
+      // Cancel any ongoing speech before starting new
+      if (speechSynthesis.speaking || speechSynthesis.paused) {
+        speechSynthesis.cancel();
+      }
+      // Add a small delay to allow UI/voices to settle
       if (speechTimeoutRef.current) {
         clearTimeout(speechTimeoutRef.current);
       }
-      // Add a small delay to allow UI to settle and avoid immediate speaking issues
       speechTimeoutRef.current = setTimeout(() => {
-        // Check speaking and waiting state again before speaking
-        if (speechSynthesis && !speechSynthesis.speaking && !speechSynthesis.paused && !waitingForSpeechClear) {
-           speakText(fullText);
-        } else {
-           console.log('Did not auto-speak, synthesis busy, paused, or waiting.', { speaking: speechSynthesis?.speaking, paused: speechSynthesis?.paused, waiting: waitingForSpeechClear });
+        try {
+          speakText(fullText);
+        } catch (err) {
+          toast({
+            title: "Text-to-Speech Error",
+            description: "Could not read the question. Please check your browser settings or try again.",
+            variant: "destructive",
+            duration: 5000
+          });
         }
-      }, 750); // Increased delay slightly
+      }, 500);
+    } else if (!voicesLoaded && isTextToSpeechEnabled) {
+      toast({
+        title: "Text-to-Speech Not Ready",
+        description: "Voices are not loaded yet. Please try again in a moment or reload the page.",
+        variant: "destructive",
+        duration: 5000
+      });
     }
 
     return () => {
       if (speechTimeoutRef.current) {
         clearTimeout(speechTimeoutRef.current);
       }
-       // Stop speech if component unmounts while speaking due to question change
-      if (speechSynthesis && (speechSynthesis.speaking || speechSynthesis.paused)) {
-         speechSynthesis.cancel();
-         setIsSpeaking(false);
-         setWaitingForSpeechClear(false); // Reset waiting state on unmount
-      }
+      // Only cancel speech if the question index changes, not on every re-render
+      // (No need to cancel here unless unmounting or navigating away)
     };
-  }, [activeQuiz?.currentQuestionIndex, isTextToSpeechEnabled, isSpeaking, speakText, isClient, activeQuiz, speechSynthesis, setIsSpeaking, speechError, setSpeechError, waitingForSpeechClear, setWaitingForSpeechClear]); // Added dependencies
+  }, [activeQuiz?.currentQuestionIndex, isTextToSpeechEnabled, speakText, isClient, activeQuiz, speechSynthesis, speechError, userInteracted, voicesLoaded, toast]);
 
   // Handle cheating flags update
   const incrementAndLogCheatingFlag = useCallback(async (activityType: ActivityType, details?: string) => {
@@ -497,6 +551,24 @@ export default function QuizPage() {
     }
   }, [activeQuiz, nextQuestion, submitQuiz, toast]);
 
+  // Listen for first user interaction
+  useEffect(() => {
+    const setInteracted = () => setUserInteracted(true);
+    window.addEventListener('click', setInteracted, { once: true });
+    window.addEventListener('keydown', setInteracted, { once: true });
+    return () => {
+      window.removeEventListener('click', setInteracted);
+      window.removeEventListener('keydown', setInteracted);
+    };
+  }, []);
+
+  // Add skipQuestion handler (for now, just go to nextQuestion)
+  const skipQuestion = () => {
+    if (activeQuiz && activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1) {
+      nextQuestion();
+    }
+  };
+
   if (!isClient || isLoadingQuiz) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
@@ -577,50 +649,6 @@ export default function QuizPage() {
               </CardContent>
             </Card>
           )}
-          <div className="flex justify-between items-center pt-4">
-            <Button
-              onClick={previousQuestion}
-              disabled={activeQuiz.currentQuestionIndex === 0 || !!activeQuiz.completedAt}
-              variant="outline"
-              size="lg"
-            >
-              <ChevronLeft className="mr-2 h-5 w-5" /> Previous
-            </Button>
-
-            {activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1 ? (
-              <Button onClick={nextQuestion} size="lg" disabled={!!activeQuiz.completedAt || !currentQ?.userAnswer}>
-                Next <ChevronRight className="ml-2 h-5 w-5" />
-              </Button>
-            ) : (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button 
-                    variant="default" 
-                    size="lg" 
-                    className="bg-green-600 hover:bg-green-700 text-white dark:text-primary-foreground"
-                    disabled={!!activeQuiz.completedAt || !currentQ?.userAnswer}
-                  >
-                    <CheckSquare className="mr-2 h-5 w-5" /> Submit Quiz
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Ready to submit your answers?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Once submitted, you won't be able to change your answers.
-                      The quiz will also auto-submit if the overall timer runs out or suspicious activity is detected.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Review Answers</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleSubmitQuizConfirm} className="bg-green-600 hover:bg-green-700">
-                      Yes, Submit Quiz
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-          </div>
         </div>
 
         <div className="lg:w-1/3 space-y-6 p-4 border rounded-lg shadow-md bg-blue-500/10 border-blue-500">
@@ -721,8 +749,118 @@ export default function QuizPage() {
             onNavigate={navigateToQuestion}
             isSubmittedView={!!activeQuiz.completedAt}
           />
+
+          {/* Updated Navigation Buttons Section with sharper corners and clearer text */}
+          <div className="mt-6 flex flex-col items-center gap-2">
+            <div className="flex justify-center items-center gap-4">
+              <button
+                onClick={previousQuestion}
+                disabled={activeQuiz.currentQuestionIndex === 0 || !!activeQuiz.completedAt}
+                className={`flex items-center px-6 py-2 rounded-md font-extrabold text-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2
+                  ${activeQuiz.currentQuestionIndex === 0 || !!activeQuiz.completedAt ? 'opacity-50 cursor-not-allowed' : 'hover:text-blue-500 focus:text-blue-500'}
+                  bg-transparent border-none text-blue-500 drop-shadow-[0_0_6px_rgba(37,99,235,0.7)]`}
+                style={{ letterSpacing: '0.04em' }}
+              >
+                <ChevronLeft className="mr-2 h-6 w-6 font-extrabold" style={{ color: '#2563eb' }} />
+                <span className="font-extrabold" style={{ color: '#2563eb', textShadow: '0 0 8px #2563eb' }}>PREV</span>
+              </button>
+
+              {activeQuiz.currentQuestionIndex < activeQuiz.questions.length - 1 ? (
+                <button
+                  onClick={() => {
+                    nextQuestion();
+                    setTimeout(() => {
+                      const nextIndex = activeQuiz.currentQuestionIndex + 1;
+                      const nextQ = activeQuiz.questions[nextIndex];
+                      if (
+                        nextQ && isTextToSpeechEnabled && voicesLoaded && userInteracted
+                      ) {
+                        const questionText = nextQ.question;
+                        const optionsText = nextQ.options
+                          ?.map((opt, index) => `Option ${index + 1}: ${opt}`)
+                          .join('. ');
+                        speakText(`${questionText}. ${optionsText || ''}`);
+                      }
+                    }, 300);
+                  }}
+                  disabled={!!activeQuiz.completedAt || !currentQ?.userAnswer}
+                  className={`flex items-center px-6 py-2 rounded-md font-extrabold text-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2
+                    ${!!activeQuiz.completedAt || !currentQ?.userAnswer ? 'opacity-50 cursor-not-allowed' : 'hover:text-green-500 focus:text-green-500'}
+                    bg-transparent border-none text-green-500 drop-shadow-[0_0_6px_rgba(34,197,94,0.7)] ml-2`}
+                  style={{ letterSpacing: '0.04em' }}
+                >
+                  <span className="font-extrabold" style={{ color: '#22c55e', textShadow: '0 0 8px #22c55e' }}>NEXT</span>
+                  <ChevronRight className="ml-2 h-6 w-6 font-extrabold" style={{ color: '#22c55e' }} />
+                </button>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      disabled={!!activeQuiz.completedAt || !currentQ?.userAnswer}
+                      className={`flex items-center px-6 py-2 rounded-md font-extrabold text-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2
+                        ${!!activeQuiz.completedAt || !currentQ?.userAnswer ? 'opacity-50 cursor-not-allowed' : 'hover:text-green-500 focus:text-green-500'}
+                        bg-transparent border-none text-green-500 drop-shadow-[0_0_6px_rgba(34,197,94,0.7)] ml-2`}
+                      style={{ letterSpacing: '0.04em' }}
+                    >
+                      <span className="font-extrabold" style={{ color: '#22c55e', textShadow: '0 0 8px #22c55e' }}>SUBMIT</span>
+                      <CheckSquare className="ml-2 h-6 w-6 font-extrabold" style={{ color: '#22c55e' }} />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Ready to submit your answers?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Once submitted, you won't be able to change your answers.
+                        The quiz will also auto-submit if the overall timer runs out or suspicious activity is detected.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Review Answers</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleSubmitQuizConfirm} className="bg-green-600 hover:bg-green-700">
+                        Yes, Submit Quiz
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+            {/* Skip Button below navigation */}
+            <button
+              onClick={() => {
+                skipQuestion();
+                setTimeout(() => {
+                  const nextIndex = activeQuiz.currentQuestionIndex + 1;
+                  const nextQ = activeQuiz.questions[nextIndex];
+                  if (
+                    nextQ && isTextToSpeechEnabled && voicesLoaded && userInteracted
+                  ) {
+                    const questionText = nextQ.question;
+                    const optionsText = nextQ.options
+                      ?.map((opt, index) => `Option ${index + 1}: ${opt}`)
+                      .join('. ');
+                    speakText(`${questionText}. ${optionsText || ''}`);
+                  }
+                }, 300);
+              }}
+              disabled={!!activeQuiz.completedAt}
+              className={`mt-2 flex items-center justify-center px-6 py-2 rounded-md font-extrabold text-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2
+                ${!!activeQuiz.completedAt ? 'opacity-50 cursor-not-allowed' : 'hover:text-purple-500 focus:text-purple-500'}
+                bg-transparent border-none text-purple-500 drop-shadow-[0_0_6px_rgba(168,85,247,0.7)]`}
+              style={{ letterSpacing: '0.04em' }}
+            >
+              <span className="font-extrabold" style={{ color: '#a855f7', textShadow: '0 0 8px #a855f7' }}>SKIP</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* TTS Help Message */}
+      {!ttsAvailable && (
+        <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          <strong>Text-to-Speech is not available.</strong><br />
+          Please ensure your browser supports speech synthesis and that voices are enabled. Try reloading the page or using a different browser (Chrome/Edge/Firefox recommended).
+        </div>
+      )}
     </div>
   );
 }

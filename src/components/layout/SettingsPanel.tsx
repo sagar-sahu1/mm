@@ -15,7 +15,7 @@ import { Moon, Sun, Laptop } from "lucide-react";
 import type { Theme } from "@/providers/ThemeProvider";
 
 export function SettingsPanel() {
-  const { theme, setTheme, accessibility, toggleLargeText, toggleHighContrast, toggleTextToSpeech } = useTheme();
+  const { theme, setTheme, accessibility, toggleHighContrast, toggleTextToSpeech } = useTheme();
 
   return (
     <div className="space-y-6">
@@ -50,14 +50,6 @@ export function SettingsPanel() {
       <div className="space-y-4">
         <h3 className="text-sm font-medium">Accessibility</h3>
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="large-text">Large Text</Label>
-            <Switch
-              id="large-text"
-              checked={accessibility.largeText}
-              onCheckedChange={toggleLargeText}
-            />
-          </div>
           <div className="flex items-center justify-between">
             <Label htmlFor="high-contrast">High Contrast</Label>
             <Switch

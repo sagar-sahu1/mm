@@ -6,7 +6,6 @@ import { useLocalStorage } from "@/hooks/use-local-storage";
 
 export type Theme = "light" | "dark" | "system";
 type AccessibilitySettings = {
-  largeText: boolean;
   highContrast: boolean;
   textToSpeech: boolean; // For UI state, actual TTS is separate
 };
@@ -16,7 +15,6 @@ interface ThemeProviderState {
   setTheme: (theme: Theme) => void;
   accessibility: AccessibilitySettings;
   setAccessibility: (settings: Partial<AccessibilitySettings>) => void;
-  toggleLargeText: () => void;
   toggleHighContrast: () => void;
   toggleTextToSpeech: () => void;
 }
@@ -25,12 +23,10 @@ const initialState: ThemeProviderState = {
   theme: "system",
   setTheme: () => null,
   accessibility: {
-    largeText: false,
     highContrast: false,
     textToSpeech: false,
   },
   setAccessibility: () => null,
-  toggleLargeText: () => null,
   toggleHighContrast: () => null,
   toggleTextToSpeech: () => null,
 };
@@ -40,7 +36,7 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  defaultAccessibility = { largeText: false, highContrast: false, textToSpeech: false },
+  defaultAccessibility = { highContrast: false, textToSpeech: false },
   storageKey = "vite-ui-theme", // Using a generic key name
 }: {
   children: ReactNode;
@@ -73,12 +69,6 @@ export function ThemeProvider({
     }
 
     // Accessibility classes
-    if (accessibility.largeText) {
-      root.classList.add("large-text");
-    } else {
-      root.classList.remove("large-text");
-    }
-
     if (accessibility.highContrast) {
       root.classList.add("high-contrast");
     } else {
@@ -93,10 +83,6 @@ export function ThemeProvider({
   const setAccessibility = (settings: Partial<AccessibilitySettings>) => {
     setAccessibilityState((prev) => ({ ...prev, ...settings }));
   };
-  
-  const toggleLargeText = () => {
-    setAccessibilityState(prev => ({ ...prev, largeText: !prev.largeText }));
-  }
 
   const toggleHighContrast = () => {
     setAccessibilityState(prev => ({ ...prev, highContrast: !prev.highContrast }));
@@ -107,13 +93,11 @@ export function ThemeProvider({
     // Actual speech synthesis will be handled by components that need it (e.g., QuizDisplay)
   }
 
-
   const value = {
     theme,
     setTheme,
     accessibility,
     setAccessibility,
-    toggleLargeText,
     toggleHighContrast,
     toggleTextToSpeech,
   };

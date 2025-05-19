@@ -50,24 +50,6 @@ export function Header() {
               Create Quiz
             </Link>
           </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/dashboard" className="flex items-center">
-              <LayoutDashboard className="mr-2 h-4 w-4" />
-              Dashboard
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/history" className="flex items-center">
-              <ListChecks className="mr-2 h-4 w-4" />
-              Quiz History
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/leaderboard" className="flex items-center">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Leaderboard
-            </Link>
-          </Button>
           
           {!loading && (
             <>
@@ -102,6 +84,18 @@ export function Header() {
                       <Link href="/dashboard" className="flex items-center w-full cursor-pointer">
                         <LayoutDashboard className="mr-2 h-4 w-4" />
                         Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/history" className="flex items-center w-full cursor-pointer">
+                        <ListChecks className="mr-2 h-4 w-4" />
+                        Quiz History
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/leaderboard" className="flex items-center w-full cursor-pointer">
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        Leaderboard
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
