@@ -213,7 +213,7 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
           yPosition = margin;
         }
         doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
+        doc.setTextColor(0, 0, 0); 
         const questionText = `Q${index + 1}: ${q.question}`;
         const questionLines = doc.splitTextToSize(questionText, doc.internal.pageSize.width - margin * 2);
         doc.text(questionLines, margin, yPosition);
@@ -223,7 +223,7 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
         let status = '';
         if (!q.userAnswer) {
           status = 'Skipped';
-          doc.setTextColor(108, 117, 125); // Muted/Gray
+            doc.setTextColor(108, 117, 125); // Muted/Gray
         } else if (q.isCorrect) {
           status = 'Correct';
           doc.setTextColor(25, 135, 84); // Green
@@ -248,7 +248,7 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
           doc.text(correctAnswerLines, margin + 5, yPosition);
           yPosition += correctAnswerLines.length * (lineHeight - 1);
         }
-
+        
         // Show explanation (always)
         doc.setTextColor(0, 0, 0);
         const explanation = explanations[index] || 'Explanation not available.';
@@ -422,9 +422,9 @@ export function ResultDisplay({ quiz }: ResultDisplayProps) {
                       question={q}
                       questionNumber={index + 1}
                       totalQuestions={quiz.questions.length}
-                      onAnswer={() => {}}
-                      isSubmitted={true}
-                      showFeedback={true}
+                      onAnswer={() => {}} 
+                      isSubmitted={true} 
+                      showFeedback={true} 
                       perQuestionDuration={0} // No timer in results view
                       onPerQuestionTimeUp={() => {}} // No action
                       timerKey={`result-q-${q.id}`}

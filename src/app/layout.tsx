@@ -64,18 +64,18 @@ export default function RootLayout({
           storageKey="mindmash-theme"
         >
           <Suspense fallback={null}>
-            <AuthProvider>
-              <QuizProvider>
-                <ClientAnalyticsInitializer />
-                <Header />
-                <main className="flex-grow container py-8">
-                  {children}
-                </main>
-                <Footer />
-                <SettingsButton />
-                <Toaster />
-              </QuizProvider>
-            </AuthProvider>
+          <AuthProvider>
+            <QuizProvider>
+              <ClientAnalyticsInitializer />
+              <Header />
+              <main className="flex-grow container py-8">
+                {children}
+              </main>
+              <Footer />
+              <SettingsButton />
+              <Toaster />
+            </QuizProvider>
+          </AuthProvider>
           </Suspense>
         </ThemeProvider>
       </body>

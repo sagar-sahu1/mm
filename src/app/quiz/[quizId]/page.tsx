@@ -14,6 +14,8 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { logCheatingActivity, getCheatingFlagsForQuiz } from "@/lib/firestoreUtils";
 import type { ActivityType, QuizQuestion } from "@/types";
+import MotionDetector from '@/components/quiz/MotionDetector';
+import { useTheme } from '@/providers/ThemeProvider';
 
 const CHEATING_FLAG_LIMIT = 3;
 const MAX_VOICE_LOAD_ATTEMPTS = 5;
@@ -37,12 +39,12 @@ export default function QuizPage() {
   } = useQuiz();
   const { currentUser } = useAuth();
   const { toast } = useToast();
+  const { accessibility } = useTheme();
   
   const [isClient, setIsClient] = useState(false);
   const [overallTimeLeft, setOverallTimeLeft] = useState<number | null>(null);
   const [cheatingFlagsCount, setCheatingFlagsCount] = useState(0);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [isTextToSpeechEnabled, setIsTextToSpeechEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speechSynthesis, setSpeechSynthesis] = useState<SpeechSynthesis | null>(null);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -54,6 +56,8 @@ export default function QuizPage() {
   const [ttsAvailable, setTtsAvailable] = useState(true);
   const [userInteracted, setUserInteracted] = useState(false); // Track if user has interacted
   const lastSpokenQuestionIndex = useRef<number | null>(null); // Track last spoken question
+  const [webcamDenied, setWebcamDenied] = useState(false);
+  const [motionWarnings, setMotionWarnings] = useState(0);
 
   // Get current question early
   const currentQ = activeQuiz?.questions[activeQuiz.currentQuestionIndex];
@@ -262,8 +266,8 @@ export default function QuizPage() {
       
       if (pressedKeysRef.current.has('f') && pressedKeysRef.current.has('j')) {
         e.preventDefault();
-        const newState = !isTextToSpeechEnabled;
-        setIsTextToSpeechEnabled(newState);
+        const newState = !accessibility.textToSpeech;
+        // setIsTextToSpeechEnabled(newState);
         
         if (!newState) {
           stopSpeaking();
@@ -305,7 +309,7 @@ export default function QuizPage() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isTextToSpeechEnabled, stopSpeaking, toast, activeQuiz, speakText, isSpeaking, waitingForSpeechClear]); // Added isSpeaking and waitingForSpeechClear to deps
+  }, [accessibility.textToSpeech, stopSpeaking, toast, activeQuiz, speakText, isSpeaking, waitingForSpeechClear]); // Added isSpeaking and waitingForSpeechClear to deps
 
   // Auto-read current question when it changes or when quiz loads
   useEffect(() => {
@@ -313,7 +317,7 @@ export default function QuizPage() {
     setWaitingForSpeechClear(false);
 
     // Only auto-speak if user has interacted and TTS is enabled
-    if (!isClient || !activeQuiz || !speechSynthesis || speechError || !userInteracted || !isTextToSpeechEnabled) return;
+    if (!isClient || !activeQuiz || !speechSynthesis || speechError || !userInteracted || !accessibility.textToSpeech) return;
 
     const currentIndex = activeQuiz.currentQuestionIndex;
     const currentQ = activeQuiz.questions[currentIndex];
@@ -348,7 +352,7 @@ export default function QuizPage() {
           });
         }
       }, 500);
-    } else if (!voicesLoaded && isTextToSpeechEnabled) {
+    } else if (!voicesLoaded && accessibility.textToSpeech) {
       toast({
         title: "Text-to-Speech Not Ready",
         description: "Voices are not loaded yet. Please try again in a moment or reload the page.",
@@ -364,7 +368,7 @@ export default function QuizPage() {
       // Only cancel speech if the question index changes, not on every re-render
       // (No need to cancel here unless unmounting or navigating away)
     };
-  }, [activeQuiz?.currentQuestionIndex, isTextToSpeechEnabled, speakText, isClient, activeQuiz, speechSynthesis, speechError, userInteracted, voicesLoaded, toast]);
+  }, [activeQuiz?.currentQuestionIndex, accessibility.textToSpeech, speakText, isClient, activeQuiz, speechSynthesis, speechError, userInteracted, voicesLoaded, toast]);
 
   // Handle cheating flags update
   const incrementAndLogCheatingFlag = useCallback(async (activityType: ActivityType, details?: string) => {
@@ -569,6 +573,28 @@ export default function QuizPage() {
     }
   };
 
+  // MotionDetector callbacks
+  const handleMotionWarning = async (warningCount: number) => {
+    setMotionWarnings(warningCount);
+    if (currentUser && activeQuiz && !activeQuiz.completedAt) {
+      await incrementAndLogCheatingFlag('motion_detected', `Motion detected by webcam. Warning ${warningCount}`);
+    }
+  };
+  const handleMaxMotionWarnings = () => {
+    if (!activeQuiz?.completedAt) {
+      submitQuiz('cheating');
+      toast({
+        title: 'Quiz Terminated',
+        description: 'Quiz auto-submitted due to repeated motion detected by webcam.',
+        variant: 'destructive',
+        duration: 7000,
+      });
+    }
+  };
+  const handleWebcamDenied = () => {
+    setWebcamDenied(true);
+  };
+
   if (!isClient || isLoadingQuiz) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
@@ -609,6 +635,24 @@ export default function QuizPage() {
 
   return (
     <div ref={quizPageRef} className="space-y-6 max-w-6xl mx-auto mindmash-quiz-area">
+      {/* MotionDetector for proctoring */}
+      {!activeQuiz?.completedAt && (
+        <MotionDetector
+          onPermissionDenied={handleWebcamDenied}
+          onMotionWarning={handleMotionWarning}
+          onMaxWarnings={handleMaxMotionWarnings}
+          cheatingLog={{}}
+        />
+      )}
+      {/* Block UI if webcam denied */}
+      {webcamDenied && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-80 text-white">
+          <ShieldAlert className="h-12 w-12 mb-4 text-red-500 animate-pulse" />
+          <h2 className="text-2xl font-bold mb-2">Webcam Access Required</h2>
+          <p className="mb-4">You must allow webcam access to take this proctored quiz. Please refresh and allow access, or contact support if you believe this is an error.</p>
+          <Button onClick={() => router.push('/')} className="mt-2">Back to Home</Button>
+        </div>
+      )}
       <Card className="shadow-md bg-card">
         <CardHeader>
           <CardTitle className="text-3xl font-bold">{activeQuiz.topic} Quiz</CardTitle>
@@ -644,7 +688,7 @@ export default function QuizPage() {
                     }
                   }}
                   isSpeaking={isSpeaking}
-                  isTextToSpeechEnabled={isTextToSpeechEnabled}
+                  isTextToSpeechEnabled={accessibility.textToSpeech}
                 />
               </CardContent>
             </Card>
@@ -658,8 +702,8 @@ export default function QuizPage() {
               <div className="flex gap-2">
                 <Button
                   onClick={() => {
-                    const newState = !isTextToSpeechEnabled;
-                    setIsTextToSpeechEnabled(newState);
+                    const newState = !accessibility.textToSpeech;
+                    // setIsTextToSpeechEnabled(newState);
                     if (!newState) {
                       stopSpeaking();
                       toast({
@@ -690,7 +734,7 @@ export default function QuizPage() {
                   title="Toggle Text-to-Speech"
                   className="flex items-center gap-2"
                 >
-                  {isTextToSpeechEnabled ? (
+                  {accessibility.textToSpeech ? (
                     <Volume2 className="h-4 w-4" />
                   ) : (
                     <VolumeX className="h-4 w-4" />
@@ -729,7 +773,7 @@ export default function QuizPage() {
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center text-muted-foreground"><Volume2 className="h-4 w-4 mr-2 text-primary" /> Text-to-Speech:</span>
                 <span className="font-semibold text-foreground">
-                  {isTextToSpeechEnabled ? 'Enabled' : 'Disabled'} (F+J)
+                  {accessibility.textToSpeech ? 'Enabled' : 'Disabled'} (F+J)
                 </span>
               </div>
             </CardContent>
@@ -773,7 +817,7 @@ export default function QuizPage() {
                       const nextIndex = activeQuiz.currentQuestionIndex + 1;
                       const nextQ = activeQuiz.questions[nextIndex];
                       if (
-                        nextQ && isTextToSpeechEnabled && voicesLoaded && userInteracted
+                        nextQ && accessibility.textToSpeech && voicesLoaded && userInteracted
                       ) {
                         const questionText = nextQ.question;
                         const optionsText = nextQ.options
@@ -832,7 +876,7 @@ export default function QuizPage() {
                   const nextIndex = activeQuiz.currentQuestionIndex + 1;
                   const nextQ = activeQuiz.questions[nextIndex];
                   if (
-                    nextQ && isTextToSpeechEnabled && voicesLoaded && userInteracted
+                    nextQ && accessibility.textToSpeech && voicesLoaded && userInteracted
                   ) {
                     const questionText = nextQ.question;
                     const optionsText = nextQ.options
