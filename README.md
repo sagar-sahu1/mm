@@ -160,7 +160,7 @@ npm start
 - **Next.js** for the modern React framework
 - **Tailwind CSS** for rapid, responsive UI
 - **Lucide Icons** for beautiful iconography
-- **Me (Sahil Singh) ** & **Sk Shahil Akhtar**
+- **Me(Sahil Singh)** & **Sk Shahil Akhtar**
 - All contributors and testers!
 
 ---
