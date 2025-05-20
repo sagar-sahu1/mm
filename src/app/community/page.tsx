@@ -211,7 +211,7 @@ export default function CommunityPage() {
               <SelectValue placeholder="Filter by Topic" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Topics</SelectItem>
+              <SelectItem value="all">All Topics</SelectItem>
               {topics.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -220,7 +220,7 @@ export default function CommunityPage() {
               <SelectValue placeholder="Filter by Difficulty" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Difficulties</SelectItem>
+              <SelectItem value="all">All Difficulties</SelectItem>
               {difficulties.map(d => <SelectItem key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -229,7 +229,7 @@ export default function CommunityPage() {
               <SelectValue placeholder="Filter by Creator" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Creators</SelectItem>
+              <SelectItem value="all">All Creators</SelectItem>
               {creators.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
