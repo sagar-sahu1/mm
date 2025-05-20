@@ -1,11 +1,11 @@
 import { siteConfig } from "@/config/site";
 import Link from "next/link";
-import { BrainCircuit, MessageSquare, Link2, ListChecks, LayoutDashboard, HelpCircle, ShieldCheck, InfoIcon, BarChart3, GraduationCap } from "lucide-react";
+import { BrainCircuit, MessageSquare, ListChecks, LayoutDashboard, HelpCircle, ShieldCheck, InfoIcon, BarChart3, GraduationCap, Users, Swords } from "lucide-react";
 
 const footerNavItems = [
   { href: "/about", label: "About Us", icon: InfoIcon },
   { href: "/contact", label: "Contact Us", icon: MessageSquare },
-  { href: "/challenge", label: "Challenge a Friend", icon: Link2 },
+  { href: "/challenge", label: "Challenge a Friend", icon: Swords },
   { href: "/history", label: "Quiz History", icon: ListChecks },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/leaderboard", label: "Leaderboard", icon: BarChart3 },
@@ -19,8 +19,29 @@ export function Footer() {
       <div className="container mx-auto max-w-5xl space-y-8 px-2 sm:px-0">
         {/* Responsive grid: stack on mobile, flex row on large screens */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row lg:justify-between lg:items-start gap-x-8 gap-y-8 lg:gap-x-64 mx-auto w-full sm:w-fit">
-          {/* Column 1: About, Contact, Privacy, FAQ */}
+          {/* Column 2: Dashboard, Leaderboard, History, Challenge (now on the left) */}
+          <div className="flex flex-col items-start space-y-4 min-w-[220px] lg:mr-16">
+            <span className="font-semibold text-lg mb-2">Features</span>
+             <Link href="/dashboard" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
+              <LayoutDashboard className="h-5 w-5" />
+              Dashboard
+            </Link>
+            <Link href="/leaderboard" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
+              <BarChart3 className="h-5 w-5" />
+              Leaderboard
+            </Link>
+             <Link href="/community" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
+              <Users className="h-5 w-5" />
+              Community
+            </Link>
+            <Link href="/challenge" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
+              <Swords className="h-5 w-5" />
+              Challenge a Friend
+            </Link>
+          </div>
+          {/* Column 1: About, Contact, Privacy, FAQ (now on the right) */}
           <div className="flex flex-col items-start space-y-4 min-w-[220px]">
+            <span className="font-semibold text-lg mb-2">Legals</span>
             <Link href="/about" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
               <InfoIcon className="h-5 w-5" />
               About Us
@@ -36,25 +57,6 @@ export function Footer() {
             <Link href="/faq" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
               <HelpCircle className="h-5 w-5" />
               FAQ
-            </Link>
-          </div>
-          {/* Column 2: Dashboard, Leaderboard, History, Challenge */}
-          <div className="flex flex-col items-start space-y-4 min-w-[220px] lg:ml-16">
-             <Link href="/dashboard" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
-              <LayoutDashboard className="h-5 w-5" />
-              Dashboard
-            </Link>
-            <Link href="/leaderboard" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
-              <BarChart3 className="h-5 w-5" />
-              Leaderboard
-            </Link>
-             <Link href="/community" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
-              <BrainCircuit className="h-5 w-5" />
-              Community
-            </Link>
-            <Link href="/challenge" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
-              <Link2 className="h-5 w-5" />
-              Challenge a Friend
             </Link>
           </div>
         </div>
