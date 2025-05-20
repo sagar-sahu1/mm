@@ -44,42 +44,42 @@ export default function ContactPage() {
                   id="name"
                   name="name"
                   type="text"
-                  placeholder="Enter your full name..."
+                          placeholder="Enter your full name..." 
                   required
-                  className="text-base py-6 bg-background/20 border-primary/20 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/60"
-                />
+                          className="text-base py-6 bg-background/20 border-primary/20 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/60"
+                        />
               </div>
               <div>
                 <label htmlFor="email" className="text-base text-muted-foreground block mb-2">Email Address</label>
                 <Input
                   id="email"
                   name="email"
-                  type="email"
-                  placeholder="Enter your email address..."
+                          type="email" 
+                          placeholder="Enter your email address..." 
                   required
-                  className="text-base py-6 bg-background/20 border-primary/20 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/60"
-                />
+                          className="text-base py-6 bg-background/20 border-primary/20 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/60"
+                        />
               </div>
               <div>
                 <label htmlFor="message" className="text-base text-muted-foreground block mb-2">Message</label>
                 <Textarea
                   id="message"
                   name="message"
-                  placeholder="Enter your main text here..."
+                          placeholder="Enter your main text here..."
                   required
-                  className="resize-y min-h-[150px] text-base p-4 bg-background/20 border-primary/20 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/60"
-                />
+                          className="resize-y min-h-[150px] text-base p-4 bg-background/20 border-primary/20 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/60"
+                        />
               </div>
               {/* Disable captcha */}
               <input type="hidden" name="_captcha" value="false" />
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full text-lg py-6 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 text-white shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
+                <Button 
+                  type="submit" 
+                  size="lg" 
+                  className="w-full text-lg py-6 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 text-white shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
               >
                 Send <Send className="h-5 w-5" />
-              </Button>
-            </form>
+                </Button>
+              </form>
           </CardContent>
         </Card>
       </div>

@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { addDoc, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { generateAIQuiz } from '@/ai/flows/generateAIQuiz';
 
 interface CommunityQuiz {
   id: string;
@@ -24,6 +25,7 @@ interface CommunityQuiz {
   creatorName?: string;
   totalAttempts?: number;
   likes?: number;
+  challengeDate?: string;
 }
 
 const REPORT_REASONS = [
@@ -56,6 +58,9 @@ export default function CommunityPage() {
   const [stories, setStories] = useState<any[]>([]);
   // Add state for selected quiz to take
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
+  const [challengeQuiz, setChallengeQuiz] = useState<CommunityQuiz | null>(null);
+  const [challengeLoading, setChallengeLoading] = useState(true);
+  const [storyInput, setStoryInput] = useState('');
 
   useEffect(() => {
     async function fetchQuizzes() {
@@ -88,6 +93,36 @@ export default function CommunityPage() {
       setStories(data);
     }
     fetchStories();
+  }, []);
+
+  // Fetch or generate today's challenge quiz
+  useEffect(() => {
+    async function fetchOrCreateChallengeQuiz() {
+      setChallengeLoading(true);
+      const db = getDb();
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const challengeDate = today.toISOString().split('T')[0];
+      // Try to find today's challenge quiz
+      const q = query(collection(db, 'quizzes'), where('challengeDate', '==', challengeDate), limit(1));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        setChallengeQuiz({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as CommunityQuiz);
+        setChallengeLoading(false);
+        return;
+      }
+      // Not found: generate with AI
+      const aiQuiz = await generateAIQuiz(); // Should return quiz object
+      const docRef = await addDoc(collection(db, 'quizzes'), {
+        ...aiQuiz,
+        isPublic: true,
+        challengeDate,
+        createdAt: Timestamp.now(),
+      });
+      setChallengeQuiz({ id: docRef.id, ...aiQuiz, challengeDate });
+      setChallengeLoading(false);
+    }
+    fetchOrCreateChallengeQuiz();
   }, []);
 
   // Build filter lists from quizzes
@@ -216,23 +251,94 @@ export default function CommunityPage() {
     }
   }
 
+  // Add a new submitStoryBox function for the inline story box
+  async function submitStoryBox() {
+    if (!storyInput.trim()) return;
+    setStorySubmitting(true);
+    try {
+      const db = getDb();
+      await addDoc(collection(db, 'stories'), {
+        userId: currentUser?.uid || null,
+        userName: currentUser?.displayName || currentUser?.email || 'Anonymous',
+        userAvatar: currentUser?.photoURL || null,
+        content: storyInput,
+        createdAt: Timestamp.now(),
+      });
+      toast({
+        title: 'Story shared!',
+        description: 'Your story has been posted to the community.',
+        variant: 'default',
+      });
+      setStoryInput('');
+      // Refresh stories
+      const storiesRef = collection(db, 'stories');
+      const q = query(storiesRef, orderBy('createdAt', 'desc'), limit(20));
+      const snapshot = await getDocs(q);
+      const data: any[] = [];
+      snapshot.forEach(doc => {
+        data.push({ id: doc.id, ...doc.data() });
+      });
+      setStories(data);
+    } catch (err) {
+      toast({
+        title: 'Error sharing story',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setStorySubmitting(false);
+    }
+  }
+
   return (
     <div className="max-w-5xl mx-auto py-10 px-2 space-y-8">
-      {/* Today's Quiz Challenge Section */}
-      <div className="w-full mb-6">
-        <div className="bg-gradient-to-r from-primary/80 to-secondary/80 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
-          <div className="flex-1">
-            <h2 className="text-2xl font-bold text-white mb-2">Today's Quiz Challenge</h2>
-            <p className="text-white/90 mb-2">Test your knowledge with today's featured quiz! Compete for the top spot and earn rewards.</p>
+      {/* Today's Quiz Challenge and Share Story */}
+      <div className="flex flex-col md:flex-row gap-6 mb-8">
+        <div className="flex-1 bg-gradient-to-r from-primary/80 to-secondary/80 rounded-xl p-6 flex flex-col justify-between shadow-lg">
+          <h2 className="text-2xl font-bold text-white mb-2">Today's Quiz Challenge</h2>
+          <p className="text-white/90 mb-4">Test your knowledge with today's featured quiz! Compete for the top spot and earn rewards.</p>
+          {challengeLoading ? (
+            <Button disabled>Loading...</Button>
+          ) : challengeQuiz ? (
             <Button asChild className="mt-2">
-              <Link href="/challenge/today">Take Today's Challenge</Link>
+              <Link href={`/quiz/${challengeQuiz.id}`}>Take Today's Challenge</Link>
             </Button>
-          </div>
-          <div className="flex-shrink-0">
-            <img src="/challenge-trophy.svg" alt="Quiz Challenge" className="h-24 w-24 md:h-32 md:w-32" />
+          ) : (
+            <Button disabled>Error loading challenge</Button>
+          )}
+        </div>
+        {/* Share Your Story Box */}
+        <div className="flex-1 flex flex-col justify-between bg-card border rounded-xl p-6 shadow-lg">
+          <label htmlFor="story-input" className="font-semibold mb-2">Share Your Story</label>
+          <div className="flex items-end gap-2 w-full">
+            <Textarea
+              id="story-input"
+              value={storyInput}
+              onChange={e => setStoryInput(e.target.value)}
+              placeholder="Write your story, experience, or learning journey..."
+              className="min-h-[80px] flex-1"
+            />
+            <Button
+              onClick={submitStoryBox}
+              disabled={!storyInput.trim() || storySubmitting}
+              className="h-10"
+            >
+              {storySubmitting ? 'Sharing...' : 'Share'}
+            </Button>
           </div>
         </div>
       </div>
+      {/* Community Stories Feed */}
+      {stories.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-3">Community Stories</h2>
+          <div className="flex flex-col gap-4">
+            {stories.map(story => (
+              <StoryCard key={story.id} story={story} currentUser={currentUser} toast={toast} />
+            ))}
+          </div>
+        </div>
+      )}
       <h1 className="text-3xl font-bold mb-4">Community Quiz Marketplace</h1>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         {/* Button left-aligned on desktop, stacked on mobile */}
@@ -381,17 +487,6 @@ export default function CommunityPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* Story Feed with Like/Comment */}
-      {stories.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-3">Community Stories</h2>
-          <div className="flex flex-col gap-4">
-            {stories.map(story => (
-              <StoryCard key={story.id} story={story} currentUser={currentUser} toast={toast} />
-            ))}
-          </div>
-        </div>
-      )}
       {loading ? (
         <div className="flex justify-center items-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -453,6 +548,26 @@ function StoryCard({ story, currentUser, toast }: { story: any; currentUser: any
   const [comments, setComments] = useState<string[]>(story.comments || []);
   const [comment, setComment] = useState('');
   const [commenting, setCommenting] = useState(false);
+  const [loadingComments, setLoadingComments] = useState(false);
+
+  useEffect(() => {
+    // Fetch comments for this story
+    async function fetchComments() {
+      setLoadingComments(true);
+      const db = getDb();
+      const commentsRef = collection(db, 'stories', story.id, 'comments');
+      const q = query(commentsRef, orderBy('createdAt', 'asc'));
+      const snapshot = await getDocs(q);
+      const data: string[] = [];
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        data.push(`${d.userName || 'Anonymous'}: ${d.content}`);
+      });
+      setComments(data);
+      setLoadingComments(false);
+    }
+    fetchComments();
+  }, [story.id]);
 
   const handleLike = () => {
     if (liked) {
@@ -461,10 +576,7 @@ function StoryCard({ story, currentUser, toast }: { story: any; currentUser: any
       setLikes((prevLikes: number) => prevLikes + 1);
     }
     setLiked(!liked);
-  };
-
-  const handleComment = () => {
-    setCommenting(true);
+    // Optionally: update Firestore likes count here
   };
 
   const handleSubmitComment = async () => {
@@ -478,9 +590,8 @@ function StoryCard({ story, currentUser, toast }: { story: any; currentUser: any
         content: comment,
         createdAt: Timestamp.now(),
       });
-      setComments(prevComments => [...prevComments, comment]);
+      setComments(prev => [...prev, `${currentUser?.displayName || currentUser?.email || 'Anonymous'}: ${comment}`]);
       setComment('');
-      setCommenting(false);
     } catch (err) {
       toast({
         title: 'Error submitting comment',
@@ -491,37 +602,46 @@ function StoryCard({ story, currentUser, toast }: { story: any; currentUser: any
   };
 
   return (
-    <div className="bg-card border rounded-lg p-4 flex gap-4 items-start shadow-sm">
-      {story.userAvatar ? (
-        <img src={story.userAvatar} alt={story.userName} className="h-10 w-10 rounded-full object-cover" />
-      ) : (
-        <UserCircle className="h-10 w-10 text-muted-foreground" />
-      )}
-      <div className="flex-1">
-        <div className="font-semibold text-sm mb-1">{story.userName || 'Anonymous'}</div>
-        <div className="text-base mb-1 whitespace-pre-line">{story.content}</div>
-        <div className="text-xs text-muted-foreground">{story.createdAt?.seconds ? new Date(story.createdAt.seconds * 1000).toLocaleString() : ''}</div>
-        <div className="flex gap-2 mt-2 flex-wrap">
-          <Button variant="ghost" size="icon" onClick={handleLike} title={liked ? 'Unlike' : 'Like'} aria-label={liked ? 'Unlike' : 'Like'}>
-            {liked ? '💖' : '💖'}
-          </Button>
-          <Button variant="ghost" size="icon" onClick={handleComment} title="Comment" aria-label="Comment">
-            <span role="img" aria-label="Comment">💬</span>
-          </Button>
-        </div>
-        {commenting && (
-          <div className="mt-2">
-            <Textarea
-              value={comment}
-              onChange={e => setComment(e.target.value)}
-              placeholder="Add a comment..."
-              className="min-h-[80px]"
-            />
-            <Button onClick={handleSubmitComment} disabled={!comment.trim()}>
-              Submit Comment
-            </Button>
-          </div>
+    <div className="bg-card border rounded-lg p-4 flex flex-col gap-2 shadow-sm">
+      <div className="flex items-center gap-3">
+        {story.userAvatar ? (
+          <img src={story.userAvatar} alt={story.userName} className="h-10 w-10 rounded-full object-cover" />
+        ) : (
+          <UserCircle className="h-10 w-10 text-muted-foreground" />
         )}
+        <div className="flex-1">
+          <div className="font-semibold text-sm mb-1">{story.userName || 'Anonymous'}</div>
+          <div className="text-base mb-1 whitespace-pre-line">{story.content}</div>
+          <div className="text-xs text-muted-foreground">{story.createdAt?.seconds ? new Date(story.createdAt.seconds * 1000).toLocaleString() : ''}</div>
+        </div>
+        <div className="flex flex-col items-center">
+          <Button variant="ghost" size="icon" onClick={handleLike} title={liked ? 'Unlike' : 'Like'} aria-label={liked ? 'Unlike' : 'Like'}>
+            <span role="img" aria-label="Like">💖</span>
+          </Button>
+          <span className="text-xs">{likes}</span>
+        </div>
+      </div>
+      {/* Comments */}
+      <div className="mt-2">
+        <div className="font-semibold text-xs mb-1">Comments:</div>
+        {loadingComments ? (
+          <div className="text-xs text-muted-foreground">Loading comments...</div>
+        ) : comments.length > 0 ? (
+          <ul className="text-xs text-muted-foreground space-y-1">
+            {comments.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        ) : (
+          <div className="text-xs text-muted-foreground">No comments yet.</div>
+        )}
+        <div className="flex gap-2 mt-2">
+          <Input
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            placeholder="Add a comment..."
+            className="flex-1"
+          />
+          <Button onClick={handleSubmitComment} disabled={!comment.trim()} size="sm">Comment</Button>
+        </div>
       </div>
     </div>
   );
