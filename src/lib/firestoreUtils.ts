@@ -508,3 +508,19 @@ export async function updateUserScore(uid: string, score: number) {
 }
 
 import { auth } from '@/lib/firebase'; // Ensure auth is imported if needed for fallbacks
+
+/**
+ * Save or update a user's answer for a quiz question in Firestore.
+ * Stores answers under users/{userId}/quizAnswers/{quizId}, with a field 'answers' (map of questionId to answer).
+ */
+export async function saveUserQuizAnswer(userId: string, quizId: string, questionId: string, answer: string | number | boolean | null) {
+  const db = getDb();
+  const quizAnswerRef = doc(db, 'users', userId, 'quizAnswers', quizId);
+  // Use setDoc with merge to update only the specific answer
+  await setDoc(quizAnswerRef, {
+    answers: {
+      [questionId]: answer
+    },
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}

@@ -4,6 +4,32 @@ const withPWA = require('next-pwa')({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  runtimeCaching: [
+    {
+      urlPattern: /^https:\/\/[^/]+\/quiz\/.*/,
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'quiz-pages',
+        expiration: { maxEntries: 50, maxAgeSeconds: 7 * 24 * 60 * 60 },
+      },
+    },
+    {
+      urlPattern: /^https:\/\/[^/]+\/api\/quiz\/.*/,
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'quiz-api',
+        expiration: { maxEntries: 50, maxAgeSeconds: 7 * 24 * 60 * 60 },
+      },
+    },
+    {
+      urlPattern: /^https:\/\/[^/]+\/(.*)\.(?:js|css|png|jpg|jpeg|svg|gif|ico|webp|woff2?)$/,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'static-assets',
+        expiration: { maxEntries: 100, maxAgeSeconds: 30 * 24 * 60 * 60 },
+      },
+    },
+  ],
 });
 
 const nextConfig: NextConfig = {

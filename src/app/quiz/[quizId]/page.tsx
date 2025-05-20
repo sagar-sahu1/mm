@@ -16,6 +16,8 @@ import { logCheatingActivity, getCheatingFlagsForQuiz } from "@/lib/firestoreUti
 import type { ActivityType, QuizQuestion } from "@/types";
 import MotionDetector from '@/components/quiz/MotionDetector';
 import { useTheme } from '@/providers/ThemeProvider';
+import { saveOfflineQuizAnswer } from '@/lib/utils';
+import { useOfflineQuizSync } from '@/hooks/use-offline-quiz-sync';
 
 const CHEATING_FLAG_LIMIT = 3;
 const MAX_VOICE_LOAD_ATTEMPTS = 5;
@@ -519,6 +521,10 @@ export default function QuizPage() {
   const handleAnswer = (answer: string) => {
     if (activeQuiz && !activeQuiz.completedAt) {
       answerQuestion(activeQuiz.questions[activeQuiz.currentQuestionIndex].id, answer);
+      // Save to IndexedDB if offline
+      if (typeof navigator !== 'undefined' && !navigator.onLine && currentUser) {
+        saveOfflineQuizAnswer(activeQuiz.id, activeQuiz.questions[activeQuiz.currentQuestionIndex].id, answer);
+      }
     }
   };
 
@@ -617,6 +623,8 @@ export default function QuizPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toast]);
 
+  useOfflineQuizSync(currentUser?.uid);
+
   if (!isClient || isLoadingQuiz) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
@@ -657,6 +665,12 @@ export default function QuizPage() {
 
   return (
     <div ref={quizPageRef} className="space-y-6 max-w-6xl mx-auto mindmash-quiz-area overflow-y-auto max-h-screen">
+      <div className="fixed top-4 left-4 z-50 flex items-center gap-2 bg-card border border-border rounded-full px-3 py-1 shadow-md">
+        <span className={navigator.onLine ? 'h-3 w-3 rounded-full bg-green-500 inline-block' : 'h-3 w-3 rounded-full bg-red-500 inline-block'}></span>
+        <span className="text-xs font-semibold text-muted-foreground">
+          {navigator.onLine ? 'Online' : 'Offline'}
+        </span>
+      </div>
       {/* MotionDetector for proctoring */}
       {!activeQuiz?.completedAt && (
         <MotionDetector
