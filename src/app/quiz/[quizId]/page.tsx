@@ -663,7 +663,7 @@ export default function QuizPage() {
 
 
   return (
-    <div ref={quizPageRef} className="space-y-6 max-w-6xl mx-auto mindmash-quiz-area">
+    <div ref={quizPageRef} className="space-y-6 max-w-6xl mx-auto mindmash-quiz-area overflow-y-auto max-h-screen">
       {/* MotionDetector for proctoring */}
       {!activeQuiz?.completedAt && (
         <MotionDetector
@@ -934,6 +934,22 @@ export default function QuizPage() {
           <strong>Text-to-Speech is not available.</strong><br />
           Please ensure your browser supports speech synthesis and that voices are enabled. Try reloading the page or using a different browser (Chrome/Edge/Firefox recommended).
         </div>
+      )}
+
+      {/* Exit Fullscreen button (show only when in fullscreen) */}
+      {isFullScreen && (
+        <button
+          onClick={() => {
+            if (document.exitFullscreen) document.exitFullscreen();
+          }}
+          className="fixed top-4 right-4 z-50 bg-card border border-border rounded-full p-2 shadow-lg flex items-center justify-center hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+          title="Exit Fullscreen"
+          aria-label="Exit Fullscreen"
+        >
+          {/* Use Minimize icon from Lucide or fallback */}
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 14h6v6M20 10h-6V4" /></svg>
+          <span className="sr-only">Exit Fullscreen</span>
+        </button>
       )}
     </div>
   );

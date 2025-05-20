@@ -73,7 +73,14 @@ export function Footer() {
             </span>
           </div>
           <div className="text-center text-sm text-muted-foreground">
-            © 2025 MindMash by Sk Shahil Akhtar & Sahil Singh. All rights reserved.
+            © 2025 MindMash by 
+            <Link href="https://github.com/sk-shahil-akhtar" className="text-primary hover:text-primary/80 transition-colors">
+              Sk Shahil Akhtar
+            </Link>
+            & 
+            <Link href="https://github.com/sahil-singh-007" className="text-primary hover:text-primary/80 transition-colors">
+              Sahil Singh
+            </Link>. All rights reserved.
           </div>
         </div>
       </div>
