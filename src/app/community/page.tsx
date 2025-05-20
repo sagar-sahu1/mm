@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Loader2, Share2, PlusCircle, Repeat2, UserCircle } from "lucide-react";
 import { getDb } from "@/lib/firebase";
-import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, limit, doc, getDoc, updateDoc, increment, setDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -543,7 +543,7 @@ function Section({ title, quizzes, onReport }: { title: string; quizzes: Communi
 }
 
 function StoryCard({ story, currentUser, toast }: { story: any; currentUser: any; toast: any }) {
-  const [likes, setLikes] = useState(story.likes || 0);
+  const [likes, setLikes] = useState(0);
   const [liked, setLiked] = useState(false);
   const [comments, setComments] = useState<string[]>(story.comments || []);
   const [comment, setComment] = useState('');
@@ -569,14 +569,27 @@ function StoryCard({ story, currentUser, toast }: { story: any; currentUser: any
     fetchComments();
   }, [story.id]);
 
-  const handleLike = () => {
-    if (liked) {
-      setLikes((prevLikes: number) => prevLikes - 1);
-    } else {
-      setLikes((prevLikes: number) => prevLikes + 1);
+  useEffect(() => {
+    // Fetch likes from Firestore
+    async function fetchLikes() {
+      const db = getDb();
+      const storyRef = doc(db, 'stories', story.id);
+      const storySnap = await getDoc(storyRef);
+      setLikes(storySnap.exists() && storySnap.data().likes ? storySnap.data().likes : 0);
     }
-    setLiked(!liked);
-    // Optionally: update Firestore likes count here
+    fetchLikes();
+  }, [story.id]);
+
+  const handleLike = async () => {
+    const db = getDb();
+    const storyRef = doc(db, 'stories', story.id);
+    try {
+      await updateDoc(storyRef, { likes: increment(liked ? -1 : 1) });
+      setLikes(likes + (liked ? -1 : 1));
+      setLiked(!liked);
+    } catch (err) {
+      toast({ title: 'Error updating like', description: 'Please try again later.', variant: 'destructive' });
+    }
   };
 
   const handleSubmitComment = async () => {
