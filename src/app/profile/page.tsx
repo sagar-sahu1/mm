@@ -23,6 +23,7 @@ import { getAppStorage } from "@/lib/firebase";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { UserProfileFirestoreData, SocialLinks } from "@/types";
 import { updateProfile as updateAuthProfile } from "firebase/auth";
+import { LottieLoader } from '@/components/ui/LottieLoader';
 
 
 const profileFormSchema = z.object({
@@ -178,10 +179,7 @@ export default function UserProfilePage() {
 
   if (authLoading || isProfileLoading || !currentUser) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-[calc(100vh-20rem)]">
-        <Loader2 className="h-10 w-10 animate-spin text-primary mb-3" />
-        <p>Loading profile...</p>
-      </div>
+      <LottieLoader message="Loading profile..." size={80} className="min-h-[calc(100vh-20rem)]" />
     );
   }
 

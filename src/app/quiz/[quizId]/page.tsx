@@ -18,6 +18,7 @@ import MotionDetector from '@/components/quiz/MotionDetector';
 import { useTheme } from '@/providers/ThemeProvider';
 import { saveOfflineQuizAnswer } from '@/lib/utils';
 import { useOfflineQuizSync } from '@/hooks/use-offline-quiz-sync';
+import { LottieLoader } from '@/components/ui/LottieLoader';
 
 const CHEATING_FLAG_LIMIT = 3;
 const MAX_VOICE_LOAD_ATTEMPTS = 5;
@@ -627,10 +628,7 @@ export default function QuizPage() {
 
   if (!isClient || isLoadingQuiz) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">Loading your quiz...</p>
-      </div>
+      <LottieLoader message="Loading your quiz..." size={120} className="min-h-[calc(100vh-200px)]" />
     );
   }
 

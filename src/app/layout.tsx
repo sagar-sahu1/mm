@@ -15,6 +15,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ClientAnalyticsInitializer } from '@/components/layout/ClientAnalyticsInitializer';
 import { Suspense, useState, useEffect } from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { LottieLoader } from '@/components/ui/LottieLoader';
 
 // Configure Playfair Display as primary font
 const playfair = Playfair_Display({
@@ -56,17 +57,9 @@ export default function RootLayout({
           storageKey="mindmash-theme"
         >
           {loading ? (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-              <DotLottieReact
-                src="/KWrl55JmP8.lottie"
-                loop
-                autoplay
-                style={{ width: '300px', height: '300px' }}
-              />
-              <p className="mt-4 text-lg font-semibold text-foreground">Loading MindMash...</p>
-            </div>
+            <LottieLoader message="Loading MindMash..." size={300} className="min-h-screen bg-background" />
           ) : (
-            <Suspense fallback={null}>
+            <Suspense fallback={<LottieLoader message="Loading..." size={120} className="min-h-screen" />}>
               <AuthProvider>
                 <QuizProvider>
                   <ClientAnalyticsInitializer />

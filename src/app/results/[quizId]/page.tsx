@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation"; 
 import { useQuiz } from "@/contexts/QuizContext";
 import { ResultDisplay } from "@/components/quiz/ResultDisplay";
-import { Loader2, AlertTriangle, Home } from "lucide-react";
+import { AlertTriangle, Home } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { LottieLoader } from '@/components/ui/LottieLoader';
 
 
 export default function ResultsPage() {
@@ -29,10 +30,7 @@ export default function ResultsPage() {
 
   if (!isClient || isLoadingQuiz) {
     return (
-       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">Loading quiz results...</p>
-      </div>
+      <LottieLoader message="Loading quiz results..." size={120} className="min-h-[calc(100vh-200px)]" />
     );
   }
   

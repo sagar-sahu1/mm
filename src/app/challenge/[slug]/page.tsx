@@ -5,11 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuiz } from '@/contexts/QuizContext';
 import { getChallengeBySlug, type ChallengeData } from '@/lib/firestoreUtils';
-import { Loader2, AlertTriangle, Home, LogIn } from 'lucide-react';
+import { AlertTriangle, Home, LogIn } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { LottieLoader } from '@/components/ui/LottieLoader';
 
 export default function ChallengeSlugPage() {
   const params = useParams();
@@ -99,10 +100,7 @@ export default function ChallengeSlugPage() {
 
   if (isLoading || authLoading || !isClient) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">Loading challenge...</p>
-      </div>
+      <LottieLoader message="Loading challenge..." size={120} className="min-h-[calc(100vh-20rem)]" />
     );
   }
 
@@ -129,8 +127,7 @@ export default function ChallengeSlugPage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)]">
-      <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-      <p className="text-lg text-muted-foreground">Preparing your challenge quiz...</p>
+      <LottieLoader message="Preparing your challenge quiz..." size={120} />
     </div>
   );
 }

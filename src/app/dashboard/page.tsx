@@ -12,6 +12,7 @@ import type { Quiz } from '@/types';
 import { LoginStreakDisplay } from '@/components/dashboard/LoginStreakDisplay';
 import { getUniqueLoginDates, calculateUserLoginStreak, getWeeklyLoginStatus } from '@/lib/firestoreUtils';
 import { Input } from '@/components/ui/input';
+import { LottieLoader } from '@/components/ui/LottieLoader';
 
 export default function DashboardPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -67,10 +68,7 @@ export default function DashboardPage() {
 
   if (!isClient || authLoading || !currentUser) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-[calc(100vh-20rem)]">
-        <Loader2 className="h-10 w-10 animate-spin text-primary mb-3" />
-        <p>Loading dashboard...</p>
-      </div>
+      <LottieLoader message="Loading dashboard..." size={80} className="min-h-[calc(100vh-20rem)]" />
     );
   }
 
@@ -125,7 +123,7 @@ export default function DashboardPage() {
           </Card>
            {isStreakLoading ? (
              <Card className="text-center shadow-md flex items-center justify-center min-h-[150px]">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <LottieLoader message="Loading streak..." size={60} />
              </Card>
            ) : (
             <LoginStreakDisplay streak={loginStreak} weeklyStatus={weeklyStatus} />

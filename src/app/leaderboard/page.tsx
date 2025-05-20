@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { LottieLoader } from '@/components/ui/LottieLoader';
 
 type TimeFilter = 'weekly' | 'monthly' | 'allTime';
 
@@ -59,15 +60,12 @@ export default function LeaderboardPage() {
   }, [timeFilter]); // Re-fetch when time filter changes
 
   if (loading || !currentUser) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
+    return <LottieLoader message="Loading..." size={80} className="h-64" />;
   }
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">Loading Leaderboard...</p>
-      </div>
+      <LottieLoader message="Loading Leaderboard..." size={120} className="min-h-[calc(100vh-20rem)]" />
     );
   }
 

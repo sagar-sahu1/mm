@@ -7,11 +7,12 @@ import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Trash2, ListChecks, FileX, RotateCcw, Eye, LogIn, Loader2 } from 'lucide-react';
+import { Trash2, ListChecks, FileX, RotateCcw, Eye, LogIn } from 'lucide-react';
 import { format } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation'; // Import useRouter
+import { LottieLoader } from '@/components/ui/LottieLoader';
 
 export default function QuizHistoryPage() {
   const { allQuizzes, deleteQuiz, clearAllCompletedQuizzes } = useQuiz();
@@ -33,10 +34,7 @@ export default function QuizHistoryPage() {
 
   if (!isClient || authLoading || !currentUser) {
     return (
-      <div className="flex flex-col justify-center items-center h-64">
-        <Loader2 className="h-10 w-10 animate-spin text-primary mb-3" />
-        <p>Loading history...</p>
-      </div>
+      <LottieLoader message="Loading history..." size={80} className="h-64" />
     );
   }
 
