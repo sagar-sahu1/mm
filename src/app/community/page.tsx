@@ -150,22 +150,22 @@ export default function CommunityPage() {
 
   return (
     <div className="max-w-5xl mx-auto py-10 px-2 space-y-8">
-      {/* Share Your Stories and Queries Box */}
+      {/* Share Your Stories and Queries Box - Redesigned as a gradient card */}
       <div className="mb-8">
-        <div className="bg-card border rounded-xl p-6 shadow-lg">
-          <label htmlFor="story-input" className="font-semibold mb-2">Share Your Stories and Queries</label>
-          <div className="flex items-end gap-2 w-full">
+        <div className="bg-gradient-to-r from-primary/80 to-secondary/80 rounded-xl p-6 shadow-lg flex flex-col">
+          <label htmlFor="story-input" className="font-semibold mb-2 text-white text-lg">Share Your Stories and Queries</label>
+          <div className="flex flex-col sm:flex-row items-end gap-2 w-full">
             <Textarea
               id="story-input"
               value={storyInput}
               onChange={e => setStoryInput(e.target.value)}
               placeholder="Write your story, experience, or learning journey..."
-              className="min-h-[80px] flex-1"
+              className="min-h-[80px] flex-1 bg-white/90 text-black placeholder:text-gray-500 rounded-md border-none focus:ring-2 focus:ring-primary"
             />
             <Button
               onClick={submitStoryBox}
               disabled={!storyInput.trim() || storySubmitting}
-              className="h-10"
+              className="h-10 mt-2 sm:mt-0 bg-white text-primary font-bold hover:bg-primary/90 hover:text-white transition"
             >
               {storySubmitting ? 'Sharing...' : 'Share'}
             </Button>
