@@ -12,8 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { addDoc, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { generateAIQuiz } from '@/ai/flows/generateAIQuiz';
+
 
 interface CommunityQuiz {
   id: string;
@@ -46,38 +45,13 @@ export default function CommunityPage() {
   const [reportReason, setReportReason] = useState('');
   const [reportComments, setReportComments] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
-  // Filtering/sorting state
-  const [filterTopic, setFilterTopic] = useState('');
-  const [filterDifficulty, setFilterDifficulty] = useState('');
-  const [filterCreator, setFilterCreator] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
+
   // Story sharing state
   const [storyOpen, setStoryOpen] = useState(false);
   const [storyContent, setStoryContent] = useState('');
   const [storySubmitting, setStorySubmitting] = useState(false);
   const [stories, setStories] = useState<any[]>([]);
-  // Add state for selected quiz to take
-  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
-  const [challengeQuiz, setChallengeQuiz] = useState<CommunityQuiz | null>(null);
-  const [challengeLoading, setChallengeLoading] = useState(true);
   const [storyInput, setStoryInput] = useState('');
-
-  useEffect(() => {
-    async function fetchQuizzes() {
-      setLoading(true);
-      const db = getDb();
-      const quizzesRef = collection(db, "quizzes");
-      const q = query(quizzesRef, where("isPublic", "==", true), orderBy("createdAt", "desc"), limit(50));
-      const snapshot = await getDocs(q);
-      const data: CommunityQuiz[] = [];
-      snapshot.forEach(doc => {
-        data.push({ id: doc.id, ...doc.data() } as CommunityQuiz);
-      });
-      setQuizzes(data);
-      setLoading(false);
-    }
-    fetchQuizzes();
-  }, []);
 
   // Fetch stories
   useEffect(() => {
@@ -95,122 +69,6 @@ export default function CommunityPage() {
     fetchStories();
   }, []);
 
-  // Fetch or generate today's challenge quiz
-  useEffect(() => {
-    async function fetchOrCreateChallengeQuiz() {
-      setChallengeLoading(true);
-      const db = getDb();
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const challengeDate = today.toISOString().split('T')[0];
-      // Try to find today's challenge quiz
-      const q = query(collection(db, 'quizzes'), where('challengeDate', '==', challengeDate), limit(1));
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        setChallengeQuiz({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as CommunityQuiz);
-        setChallengeLoading(false);
-        return;
-      }
-      // Not found: generate with AI
-      const aiQuiz = await generateAIQuiz(); // Should return quiz object
-      const docRef = await addDoc(collection(db, 'quizzes'), {
-        ...aiQuiz,
-        isPublic: true,
-        challengeDate,
-        createdAt: Timestamp.now(),
-      });
-      setChallengeQuiz({ id: docRef.id, ...aiQuiz, challengeDate });
-      setChallengeLoading(false);
-    }
-    fetchOrCreateChallengeQuiz();
-  }, []);
-
-  // Build filter lists from quizzes
-  // Count topic popularity
-  const topicCounts: Record<string, number> = {};
-  quizzes.forEach(q => {
-    if (q.topic) {
-      topicCounts[q.topic] = (topicCounts[q.topic] || 0) + 1;
-    }
-  });
-  // Sort topics by popularity
-  const topics = Object.entries(topicCounts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([topic]) => topic);
-
-  // Difficulties (unique, unsorted)
-  const difficulties = Array.from(new Set(quizzes.map(q => q.difficulty).filter(Boolean)));
-
-  // Creators: group by name, count quizzes per creator, sort by popularity
-  const creatorCounts: Record<string, { name: string; count: number }> = {};
-  quizzes.forEach(q => {
-    const name = q.creatorName || 'Unknown';
-    if (!creatorCounts[name]) {
-      creatorCounts[name] = { name, count: 0 };
-    }
-    creatorCounts[name].count++;
-  });
-  const creators = Object.values(creatorCounts)
-    .sort((a, b) => b.count - a.count)
-    .map(c => c.name);
-
-  // Filter quizzes by search and filters
-  let filtered = quizzes.filter(q =>
-    (q.topic.toLowerCase().includes(search.toLowerCase()) ||
-      (q.subtopic && q.subtopic.toLowerCase().includes(search.toLowerCase())) ||
-      (q.creatorName && q.creatorName.toLowerCase().includes(search.toLowerCase()))) &&
-    (filterTopic === 'all' || q.topic === filterTopic) &&
-    (filterDifficulty === 'all' || q.difficulty === filterDifficulty) &&
-    (filterCreator === 'all' || (q.creatorName || 'Unknown') === filterCreator)
-  );
-
-  // Sort quizzes
-  if (sortBy === 'newest') {
-    filtered = filtered.slice().sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-  } else if (sortBy === 'popular') {
-    filtered = filtered.slice().sort((a, b) => ((b.likes || 0) + (b.totalAttempts || 0)) - ((a.likes || 0) + (a.totalAttempts || 0)));
-  }
-
-  // Placeholder logic for trending/new/top-rated
-  const trending = filtered.slice(0, 5);
-  const newest = filtered.slice(0, 5);
-  const topRated = filtered.slice(0, 5);
-
-  function handleReport(quizId: string) {
-    setReportQuizId(quizId);
-    setReportOpen(true);
-    setReportReason('');
-    setReportComments('');
-  }
-
-  async function submitReport() {
-    if (!reportQuizId || !reportReason) return;
-    setReportSubmitting(true);
-    try {
-      const db = getDb();
-      await addDoc(collection(db, 'quizReports'), {
-        quizId: reportQuizId,
-        userId: currentUser?.uid || null,
-        reason: reportReason,
-        comments: reportComments,
-        createdAt: Timestamp.now(),
-      });
-      toast({
-        title: 'Report submitted',
-        description: 'Thank you for helping us keep the community safe.',
-        variant: 'default',
-      });
-      setReportOpen(false);
-    } catch (err) {
-      toast({
-        title: 'Error submitting report',
-        description: 'Please try again later.',
-        variant: 'destructive',
-      });
-    } finally {
-      setReportSubmitting(false);
-    }
-  }
 
   async function submitStory() {
     if (!storyContent.trim()) return;
@@ -292,24 +150,10 @@ export default function CommunityPage() {
 
   return (
     <div className="max-w-5xl mx-auto py-10 px-2 space-y-8">
-      {/* Today's Quiz Challenge and Share Story */}
-      <div className="flex flex-col md:flex-row gap-6 mb-8">
-        <div className="flex-1 bg-gradient-to-r from-primary/80 to-secondary/80 rounded-xl p-6 flex flex-col justify-between shadow-lg">
-          <h2 className="text-2xl font-bold text-white mb-2">Today's Quiz Challenge</h2>
-          <p className="text-white/90 mb-4">Test your knowledge with today's featured quiz! Compete for the top spot and earn rewards.</p>
-          {challengeLoading ? (
-            <Button disabled>Loading...</Button>
-          ) : challengeQuiz ? (
-            <Button asChild className="mt-2">
-              <Link href={`/quiz/${challengeQuiz.id}`}>Take Today's Challenge</Link>
-            </Button>
-          ) : (
-            <Button disabled>Error loading challenge</Button>
-          )}
-        </div>
-        {/* Share Your Story Box */}
-        <div className="flex-1 flex flex-col justify-between bg-card border rounded-xl p-6 shadow-lg">
-          <label htmlFor="story-input" className="font-semibold mb-2">Share Your Story</label>
+      {/* Share Your Stories and Queries Box */}
+      <div className="mb-8">
+        <div className="bg-card border rounded-xl p-6 shadow-lg">
+          <label htmlFor="story-input" className="font-semibold mb-2">Share Your Stories and Queries</label>
           <div className="flex items-end gap-2 w-full">
             <Textarea
               id="story-input"
@@ -338,100 +182,6 @@ export default function CommunityPage() {
             ))}
           </div>
         </div>
-      )}
-      <h1 className="text-3xl font-bold mb-4">Community Quiz Marketplace</h1>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-        {/* Button left-aligned on desktop, stacked on mobile */}
-        <div className="flex-shrink-0 md:mr-4">
-          <Button onClick={() => setStoryOpen(true)} className="w-full md:w-auto flex items-center gap-2">
-            <UserCircle className="h-5 w-5" />
-            Share Your Story
-          </Button>
-        </div>
-        <div className="flex flex-col md:flex-row md:items-end md:gap-4 gap-2 mb-4 w-full">
-          <Input
-            type="text"
-            placeholder="Search quizzes by topic, subtopic, or creator..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="max-w-xs"
-          />
-          <Select value={filterTopic} onValueChange={setFilterTopic}>
-            <SelectTrigger className="max-w-xs">
-              <SelectValue placeholder="Filter by Topic" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Topics</SelectItem>
-              {topics.map(t => (
-                <SelectItem key={t} value={t}>
-                  {t} ({topicCounts[t]})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
-            <SelectTrigger className="max-w-xs">
-              <SelectValue placeholder="Filter by Difficulty" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Difficulties</SelectItem>
-              {difficulties.map(d => <SelectItem key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterCreator} onValueChange={setFilterCreator}>
-            <SelectTrigger className="max-w-xs">
-              <SelectValue placeholder="Filter by Creator" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Creators</SelectItem>
-              {creators.map(c => (
-                <SelectItem key={c} value={c}>
-                  {c} ({creatorCounts[c]?.count || 0})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="max-w-xs">
-              <SelectValue placeholder="Sort By" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="popular">Most Popular</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      {/* List all matching quizzes with Take Quiz buttons and stats */}
-      {filtered.length > 0 ? (
-        <div className="mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {filtered.map(quiz => (
-              <div key={quiz.id} className="bg-card border rounded-lg p-4 flex flex-col gap-2 shadow-sm">
-                <div className="font-bold text-lg truncate">{quiz.topic}</div>
-                <div className="text-sm text-muted-foreground mb-1">
-                  Difficulty: <span className="capitalize">{quiz.difficulty}</span><br />
-                  Creator: {quiz.creatorName || 'Unknown'}
-                </div>
-                <div className="flex gap-4 items-center text-xs text-muted-foreground mb-2">
-                  <span className="flex items-center gap-1">
-                    <span role="img" aria-label="Likes">💖</span> {quiz.likes || 0} Likes
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 17v-2a4 4 0 014-4h14" /></svg>
-                    {quiz.totalAttempts || 0} Attempts
-                  </span>
-                </div>
-                <Button asChild className="w-full mt-2">
-                  <a href={`/quiz/${quiz.id}`}>Take Quiz</a>
-                </Button>
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 text-muted-foreground text-sm">{filtered.length} quiz{filtered.length > 1 ? 'zes' : ''} match your filters.</div>
-        </div>
-      ) : (
-        <div className="mb-6 text-muted-foreground text-sm">No quizzes match your filters. Try adjusting them!</div>
       )}
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent>
@@ -463,9 +213,7 @@ export default function CommunityPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={submitReport} disabled={!reportReason || reportSubmitting}>
-              {reportSubmitting ? 'Submitting...' : 'Submit Report'}
-            </Button>
+            {/* Reporting is deprecated; no submit button */}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -487,57 +235,6 @@ export default function CommunityPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <>
-          <Section title="Trending" quizzes={trending} onReport={handleReport} />
-          <Section title="New" quizzes={newest} onReport={handleReport} />
-          <Section title="Top Rated" quizzes={topRated} onReport={handleReport} />
-        </>
-      )}
-    </div>
-  );
-}
-
-function Section({ title, quizzes, onReport }: { title: string; quizzes: CommunityQuiz[]; onReport: (quizId: string) => void }) {
-  if (!quizzes.length) return null;
-  return (
-    <div className="mb-8">
-      <h2 className="text-xl font-semibold mb-3">{title}</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {quizzes.map(q => (
-          <Card key={q.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold truncate">{q.topic}</CardTitle>
-              <CardDescription className="text-sm text-muted-foreground">
-                {q.subtopic && <span>Subtopic: {q.subtopic} | </span>}
-                Difficulty: <span className="capitalize">{q.difficulty}</span>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <div className="text-xs text-muted-foreground">By: {q.creatorName || "Unknown"}</div>
-              <div className="flex gap-4 text-xs">
-                <span>Attempts: {q.totalAttempts || 0}</span>
-                <span>Likes: {q.likes || 0}</span>
-              </div>
-              <div className="flex gap-2 mt-2 flex-wrap">
-                <Link href={`/quiz/${q.id}`} className="text-primary underline text-sm font-semibold">Take Quiz</Link>
-                <Link href={`/create-quiz?remix=${q.id}`} title="Remix this quiz" aria-label="Remix Quiz">
-                  <Button variant="ghost" size="icon">
-                    <Repeat2 className="h-5 w-5 text-muted-foreground" />
-                  </Button>
-                </Link>
-                <Button variant="ghost" size="icon" onClick={() => onReport(q.id)} title="Report Quiz" aria-label="Report Quiz">
-                  <span role="img" aria-label="Report">🚩</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
     </div>
   );
 }
