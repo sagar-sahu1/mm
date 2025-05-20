@@ -152,7 +152,7 @@ export default function CommunityPage() {
     <div className="max-w-5xl mx-auto py-10 px-2 space-y-8">
       {/* Share Your Stories and Queries Box - Redesigned as a gradient card with adaptive theming */}
       <div className="mb-8">
-        <div className="bg-gradient-to-r from-primary/80 to-secondary/80 dark:from-gray-900 dark:to-gray-800 rounded-xl p-8 min-h-[220px] shadow-lg flex flex-col justify-center">
+        <div className="bg-gradient-to-r from-primary/80 to-secondary/80 dark:bg-gradient-to-r dark:from-primary/80 dark:to-secondary/80 rounded-xl p-8 min-h-[220px] shadow-lg flex flex-col justify-center">
           <label htmlFor="story-input" className="font-semibold mb-2 text-white text-lg dark:text-gray-100">Share Your Stories Or Queries</label>
           <div className="flex flex-col sm:flex-row items-end gap-2 w-full">
             <Textarea
