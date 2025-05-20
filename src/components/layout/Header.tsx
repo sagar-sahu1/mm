@@ -50,12 +50,6 @@ export function Header() {
               Create Quiz
             </Link>
           </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/community" className="flex items-center">
-              <BrainCircuit className="mr-2 h-4 w-4" />
-              Community
-            </Link>
-          </Button>
           
           {!loading && (
             <>
