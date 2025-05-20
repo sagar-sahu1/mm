@@ -44,7 +44,7 @@ export async function addChallenge(
   };
 
   // Remove undefined fields from dataToSet
-  Object.keys(dataToSet).forEach(key => {
+  (Object.keys(dataToSet) as (keyof typeof dataToSet)[]).forEach((key) => {
     if (dataToSet[key] === undefined) {
       delete dataToSet[key];
     }
@@ -413,10 +413,10 @@ export function getWeeklyLoginStatus(uniqueLoginDates: string[], referenceDate: 
     end: dateFnsAddDays(startOfCurrentWeek, 6),
   });
   
-  const loginSet = new Set(uniqueLoginDates.map(dateStr => {
-     try {
-      const dateObj = parseISO(dateStr); 
-      if (isNaN(dateObj.getTime())) { // Check if date is valid after parsing
+  const loginArray = uniqueLoginDates.map(dateStr => {
+    try {
+      const dateObj = parseISO(dateStr);
+      if (isNaN(dateObj.getTime())) {
         console.warn(`Invalid date string encountered in login history: ${dateStr}`);
         return null;
       }
@@ -425,8 +425,8 @@ export function getWeeklyLoginStatus(uniqueLoginDates: string[], referenceDate: 
       console.warn(`Error parsing date string ${dateStr}:`, e);
       return null;
     }
-  }).filter(date => date !== null) as Set<string>); // Ensure we have a Set of valid strings
-
+  }).filter((date): date is string => date !== null);
+  const loginSet = new Set(loginArray);
 
   const weeklyStatus = weekDays.map(day => {
     const dayStr = format(day, 'yyyy-MM-dd');
