@@ -664,7 +664,10 @@ export default function QuizPage() {
 
 
   return (
-    <div ref={quizPageRef} className="space-y-6 max-w-6xl mx-auto mindmash-quiz-area overflow-y-auto max-h-screen">
+    <div
+      ref={quizPageRef}
+      className={`space-y-6 max-w-6xl mx-auto mindmash-quiz-area max-h-screen ${isFullScreen ? 'lg:overflow-hidden' : 'overflow-y-auto'}`}
+    >
       <div className="fixed top-4 left-4 z-50 flex items-center gap-2 bg-card border border-border rounded-full px-3 py-1 shadow-md">
         <span className={navigator.onLine ? 'h-3 w-3 rounded-full bg-green-500 inline-block' : 'h-3 w-3 rounded-full bg-red-500 inline-block'}></span>
         <span className="text-xs font-semibold text-muted-foreground">

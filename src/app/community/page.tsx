@@ -175,7 +175,7 @@ export default function CommunityPage() {
       {/* Community Stories Feed */}
       {stories.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-3">Community Stories</h2>
+          <h2 className="text-xl font-semibold mb-3">Community Stories and Queries</h2>
           <div className="flex flex-col gap-4">
             {stories.map(story => (
               <StoryCard key={story.id} story={story} currentUser={currentUser} toast={toast} />
