@@ -417,14 +417,7 @@ export default function QuizPage() {
 
     const handleFullscreenChange = () => {
       const currentlyFullscreen = !!document.fullscreenElement;
-      if (isFullScreen && !currentlyFullscreen) { // Exited fullscreen
-        incrementAndLogCheatingFlag('fullscreen_exit');
-        toast({
-            title: "Fullscreen Exited",
-            description: "You have exited fullscreen mode. Please re-enter to continue the quiz without issues.",
-            variant: "destructive"
-        });
-      }
+      // No longer count exiting fullscreen as cheating or show a warning
       setIsFullScreen(currentlyFullscreen);
     };
 
