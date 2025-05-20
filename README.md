@@ -15,7 +15,6 @@ MindMash is a modern, AI-powered quiz and learning platform built with Next.js, 
 
 ## Table of Contents
 - [Features](#features)
-- [Screenshots](#screenshots)
 - [Setup & Installation](#setup--installation)
 - [Environment Variables](#environment-variables)
 - [Usage Guide](#usage-guide)
@@ -52,12 +51,6 @@ MindMash is a modern, AI-powered quiz and learning platform built with Next.js, 
 - Auth (email, Google, etc.)
 - Firestore for quizzes, stories, likes, comments, and reports.
 - Secure, scalable, and real-time.
-
----
-
-## Screenshots
-
-> Add screenshots here of the main quiz UI, community stories, dark/light mode, and mobile view.
 
 ---
 
@@ -167,9 +160,8 @@ npm start
 - **Next.js** for the modern React framework
 - **Tailwind CSS** for rapid, responsive UI
 - **Lucide Icons** for beautiful iconography
+- **Me(Sahil Singh)** & **Sk Shahil Akhtar**
 - All contributors and testers!
 
 ---
 
-## License
-MIT
