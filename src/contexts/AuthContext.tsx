@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      let userProfile = await getUserProfile(user.uid);
+      const userProfile = await getUserProfile(user.uid);
       if (!userProfile) {
         const profileDataToCreate: Partial<UserProfileFirestoreData> = {
             email: user.email || undefined,

@@ -80,7 +80,7 @@ export function ActivityHeatmap({ userId }: ActivityHeatmapProps) {
     
     const firstDayOfYear = startOfYear(new Date(selectedYear, 0, 1));
     // JavaScript's getDay(): 0 (Sun) - 6 (Sat). We want Monday as 0.
-    let startOffset = (getDay(firstDayOfYear) + 6) % 7; // 0 (Mon) - 6 (Sun)
+    const startOffset = (getDay(firstDayOfYear) + 6) % 7; // 0 (Mon) - 6 (Sun)
 
     const weeks: HeatmapCellData[][] = Array.from({ length: 53 }, () => []);
     const monthLabels: { label: string, weekIndex: number }[] = [];
@@ -93,7 +93,7 @@ export function ActivityHeatmap({ userId }: ActivityHeatmapProps) {
       // Adjust weekOfYear for years starting mid-week, ensuring alignment with 53 columns
       // This is a simplified week calculation for heatmap display.
       // A more robust method might be needed for perfect GitHub alignment.
-      let displayWeekIndex = differenceInCalendarWeeks(date, startOfYear(new Date(selectedYear,0,1)), {weekStartsOn:1});
+      const displayWeekIndex = differenceInCalendarWeeks(date, startOfYear(new Date(selectedYear,0,1)), {weekStartsOn:1});
       if(startOffset > 0 && getWeek(startOfYear(new Date(selectedYear,0,1)), {weekStartsOn:1}) === 52 || getWeek(startOfYear(new Date(selectedYear,0,1)), {weekStartsOn:1}) === 53 ) {
          // If Jan 1st is in week 52/53 of previous year, the first week in heatmap is that week.
       } else if (startOffset > 0) {

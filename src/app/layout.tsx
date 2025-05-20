@@ -1,3 +1,6 @@
+"use client";
+// NOTE: If you need to define metadata for this layout, create a separate file named layout.metadata.ts in the same directory and export the metadata object from there.
+
 import type { Metadata } from 'next';
 import { Outfit, Playfair_Display } from 'next/font/google';
 import './globals.css';
@@ -10,7 +13,8 @@ import { siteConfig } from '@/config/site';
 import { QuizProvider } from '@/contexts/QuizContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ClientAnalyticsInitializer } from '@/components/layout/ClientAnalyticsInitializer';
-import { Suspense } from 'react';
+import { Suspense, useState, useEffect } from 'react';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 // Configure Playfair Display as primary font
 const playfair = Playfair_Display({
@@ -28,34 +32,22 @@ const outfit = Outfit({
   weight: ['400', '500', '600', '700'],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: siteConfig.name,
-    template: `%s | ${siteConfig.name}`,
-  },
-  description: siteConfig.description,
-  keywords: ["Quiz", "AI Quiz", "Education", "Learning", "MindMash", "Challenge Quiz", "Interactive Quiz"],
-  authors: [{ name: "Firebase Studio", url: "https://firebase.google.com/studio/studio" }],
-  creator: "Firebase Studio",
-  // openGraph, twitter, icons metadata remains commented out for now
-  // For specific pages, metadata can be exported from the page.tsx file if it's a server component
-  // or defined here if a pattern is needed, e.g., for /about or /contact if they were server components.
-  // Example for specific pages (if they were server components):
-  // '/about': {
-  //   title: 'About MindMash',
-  //   description: 'Learn more about MindMash, our mission, and how we use AI to create engaging quizzes.',
-  // },
-  // '/contact': {
-  //   title: 'Contact Us - MindMash',
-  //   description: 'Get in touch with the MindMash team.',
-  // },
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate a loading process
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 3000); // Display loading for 3 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${playfair.variable} ${outfit.variable} antialiased flex flex-col min-h-screen`}>
@@ -63,20 +55,32 @@ export default function RootLayout({
           defaultTheme="system"
           storageKey="mindmash-theme"
         >
-          <Suspense fallback={null}>
-          <AuthProvider>
-            <QuizProvider>
-              <ClientAnalyticsInitializer />
-              <Header />
-              <main className="flex-grow container py-8">
-                {children}
-              </main>
-              <Footer />
-              <SettingsButton />
-              <Toaster />
-            </QuizProvider>
-          </AuthProvider>
-          </Suspense>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+              <DotLottieReact
+                src="/KWrl55JmP8.lottie"
+                loop
+                autoplay
+                style={{ width: '300px', height: '300px' }}
+              />
+              <p className="mt-4 text-lg font-semibold text-foreground">Loading MindMash...</p>
+            </div>
+          ) : (
+            <Suspense fallback={null}>
+              <AuthProvider>
+                <QuizProvider>
+                  <ClientAnalyticsInitializer />
+                  <Header />
+                  <main className="flex-grow container py-8">
+                    {children}
+                  </main>
+                  <Footer />
+                  <SettingsButton />
+                  <Toaster />
+                </QuizProvider>
+              </AuthProvider>
+            </Suspense>
+          )}
         </ThemeProvider>
       </body>
     </html>
