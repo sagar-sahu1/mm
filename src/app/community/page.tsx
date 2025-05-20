@@ -54,6 +54,8 @@ export default function CommunityPage() {
   const [storyContent, setStoryContent] = useState('');
   const [storySubmitting, setStorySubmitting] = useState(false);
   const [stories, setStories] = useState<any[]>([]);
+  // Add state for selected quiz to take
+  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchQuizzes() {
@@ -88,19 +90,43 @@ export default function CommunityPage() {
     fetchStories();
   }, []);
 
-  // Get unique topics, difficulties, creators from quizzes
-  const topics = Array.from(new Set(quizzes.map(q => q.topic).filter(Boolean)));
+  // Build filter lists from quizzes
+  // Count topic popularity
+  const topicCounts: Record<string, number> = {};
+  quizzes.forEach(q => {
+    if (q.topic) {
+      topicCounts[q.topic] = (topicCounts[q.topic] || 0) + 1;
+    }
+  });
+  // Sort topics by popularity
+  const topics = Object.entries(topicCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([topic]) => topic);
+
+  // Difficulties (unique, unsorted)
   const difficulties = Array.from(new Set(quizzes.map(q => q.difficulty).filter(Boolean)));
-  const creators = Array.from(new Set(quizzes.map(q => q.creatorName || '').filter(c => c)));
+
+  // Creators: group by name, count quizzes per creator, sort by popularity
+  const creatorCounts: Record<string, { name: string; count: number }> = {};
+  quizzes.forEach(q => {
+    const name = q.creatorName || 'Unknown';
+    if (!creatorCounts[name]) {
+      creatorCounts[name] = { name, count: 0 };
+    }
+    creatorCounts[name].count++;
+  });
+  const creators = Object.values(creatorCounts)
+    .sort((a, b) => b.count - a.count)
+    .map(c => c.name);
 
   // Filter quizzes by search and filters
   let filtered = quizzes.filter(q =>
     (q.topic.toLowerCase().includes(search.toLowerCase()) ||
       (q.subtopic && q.subtopic.toLowerCase().includes(search.toLowerCase())) ||
       (q.creatorName && q.creatorName.toLowerCase().includes(search.toLowerCase()))) &&
-    (!filterTopic || q.topic === filterTopic) &&
-    (!filterDifficulty || q.difficulty === filterDifficulty) &&
-    (!filterCreator || (q.creatorName || '') === filterCreator)
+    (filterTopic === 'all' || q.topic === filterTopic) &&
+    (filterDifficulty === 'all' || q.difficulty === filterDifficulty) &&
+    (filterCreator === 'all' || (q.creatorName || 'Unknown') === filterCreator)
   );
 
   // Sort quizzes
@@ -192,13 +218,31 @@ export default function CommunityPage() {
 
   return (
     <div className="max-w-5xl mx-auto py-10 px-2 space-y-8">
+      {/* Today's Quiz Challenge Section */}
+      <div className="w-full mb-6">
+        <div className="bg-gradient-to-r from-primary/80 to-secondary/80 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold text-white mb-2">Today's Quiz Challenge</h2>
+            <p className="text-white/90 mb-2">Test your knowledge with today's featured quiz! Compete for the top spot and earn rewards.</p>
+            <Button asChild className="mt-2">
+              <Link href="/challenge/today">Take Today's Challenge</Link>
+            </Button>
+          </div>
+          <div className="flex-shrink-0">
+            <img src="/challenge-trophy.svg" alt="Quiz Challenge" className="h-24 w-24 md:h-32 md:w-32" />
+          </div>
+        </div>
+      </div>
       <h1 className="text-3xl font-bold mb-4">Community Quiz Marketplace</h1>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-        <Button onClick={() => setStoryOpen(true)} className="w-full sm:w-auto flex items-center gap-2">
-          <UserCircle className="h-5 w-5" />
-          Share Your Story
-        </Button>
-        <div className="flex flex-col md:flex-row md:items-end md:gap-4 gap-2 mb-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+        {/* Button left-aligned on desktop, stacked on mobile */}
+        <div className="flex-shrink-0 md:mr-4">
+          <Button onClick={() => setStoryOpen(true)} className="w-full md:w-auto flex items-center gap-2">
+            <UserCircle className="h-5 w-5" />
+            Share Your Story
+          </Button>
+        </div>
+        <div className="flex flex-col md:flex-row md:items-end md:gap-4 gap-2 mb-4 w-full">
           <Input
             type="text"
             placeholder="Search quizzes by topic, subtopic, or creator..."
@@ -212,7 +256,11 @@ export default function CommunityPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Topics</SelectItem>
-              {topics.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              {topics.map(t => (
+                <SelectItem key={t} value={t}>
+                  {t} ({topicCounts[t]})
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
@@ -230,7 +278,11 @@ export default function CommunityPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Creators</SelectItem>
-              {creators.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {creators.map(c => (
+                <SelectItem key={c} value={c}>
+                  {c} ({creatorCounts[c]?.count || 0})
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
@@ -244,6 +296,37 @@ export default function CommunityPage() {
           </Select>
         </div>
       </div>
+      {/* List all matching quizzes with Take Quiz buttons and stats */}
+      {filtered.length > 0 ? (
+        <div className="mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {filtered.map(quiz => (
+              <div key={quiz.id} className="bg-card border rounded-lg p-4 flex flex-col gap-2 shadow-sm">
+                <div className="font-bold text-lg truncate">{quiz.topic}</div>
+                <div className="text-sm text-muted-foreground mb-1">
+                  Difficulty: <span className="capitalize">{quiz.difficulty}</span><br />
+                  Creator: {quiz.creatorName || 'Unknown'}
+                </div>
+                <div className="flex gap-4 items-center text-xs text-muted-foreground mb-2">
+                  <span className="flex items-center gap-1">
+                    <span role="img" aria-label="Likes">💖</span> {quiz.likes || 0} Likes
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 17v-2a4 4 0 014-4h14" /></svg>
+                    {quiz.totalAttempts || 0} Attempts
+                  </span>
+                </div>
+                <Button asChild className="w-full mt-2">
+                  <a href={`/quiz/${quiz.id}`}>Take Quiz</a>
+                </Button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 text-muted-foreground text-sm">{filtered.length} quiz{filtered.length > 1 ? 'zes' : ''} match your filters.</div>
+        </div>
+      ) : (
+        <div className="mb-6 text-muted-foreground text-sm">No quizzes match your filters. Try adjusting them!</div>
+      )}
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent>
           <DialogHeader>
@@ -298,24 +381,13 @@ export default function CommunityPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* Story Feed */}
+      {/* Story Feed with Like/Comment */}
       {stories.length > 0 && (
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-3">Community Stories</h2>
           <div className="flex flex-col gap-4">
             {stories.map(story => (
-              <div key={story.id} className="bg-card border rounded-lg p-4 flex gap-4 items-start shadow-sm">
-                {story.userAvatar ? (
-                  <img src={story.userAvatar} alt={story.userName} className="h-10 w-10 rounded-full object-cover" />
-                ) : (
-                  <UserCircle className="h-10 w-10 text-muted-foreground" />
-                )}
-                <div className="flex-1">
-                  <div className="font-semibold text-sm mb-1">{story.userName || 'Anonymous'}</div>
-                  <div className="text-base mb-1 whitespace-pre-line">{story.content}</div>
-                  <div className="text-xs text-muted-foreground">{story.createdAt?.seconds ? new Date(story.createdAt.seconds * 1000).toLocaleString() : ''}</div>
-                </div>
-              </div>
+              <StoryCard key={story.id} story={story} currentUser={currentUser} toast={toast} />
             ))}
           </div>
         </div>
@@ -370,6 +442,86 @@ function Section({ title, quizzes, onReport }: { title: string; quizzes: Communi
             </CardContent>
           </Card>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function StoryCard({ story, currentUser, toast }: { story: any; currentUser: any; toast: any }) {
+  const [likes, setLikes] = useState(story.likes || 0);
+  const [liked, setLiked] = useState(false);
+  const [comments, setComments] = useState<string[]>(story.comments || []);
+  const [comment, setComment] = useState('');
+  const [commenting, setCommenting] = useState(false);
+
+  const handleLike = () => {
+    if (liked) {
+      setLikes((prevLikes: number) => prevLikes - 1);
+    } else {
+      setLikes((prevLikes: number) => prevLikes + 1);
+    }
+    setLiked(!liked);
+  };
+
+  const handleComment = () => {
+    setCommenting(true);
+  };
+
+  const handleSubmitComment = async () => {
+    if (!comment.trim()) return;
+    try {
+      const db = getDb();
+      await addDoc(collection(db, 'stories', story.id, 'comments'), {
+        userId: currentUser?.uid || null,
+        userName: currentUser?.displayName || currentUser?.email || 'Anonymous',
+        userAvatar: currentUser?.photoURL || null,
+        content: comment,
+        createdAt: Timestamp.now(),
+      });
+      setComments(prevComments => [...prevComments, comment]);
+      setComment('');
+      setCommenting(false);
+    } catch (err) {
+      toast({
+        title: 'Error submitting comment',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <div className="bg-card border rounded-lg p-4 flex gap-4 items-start shadow-sm">
+      {story.userAvatar ? (
+        <img src={story.userAvatar} alt={story.userName} className="h-10 w-10 rounded-full object-cover" />
+      ) : (
+        <UserCircle className="h-10 w-10 text-muted-foreground" />
+      )}
+      <div className="flex-1">
+        <div className="font-semibold text-sm mb-1">{story.userName || 'Anonymous'}</div>
+        <div className="text-base mb-1 whitespace-pre-line">{story.content}</div>
+        <div className="text-xs text-muted-foreground">{story.createdAt?.seconds ? new Date(story.createdAt.seconds * 1000).toLocaleString() : ''}</div>
+        <div className="flex gap-2 mt-2 flex-wrap">
+          <Button variant="ghost" size="icon" onClick={handleLike} title={liked ? 'Unlike' : 'Like'} aria-label={liked ? 'Unlike' : 'Like'}>
+            {liked ? '💖' : '💖'}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={handleComment} title="Comment" aria-label="Comment">
+            <span role="img" aria-label="Comment">💬</span>
+          </Button>
+        </div>
+        {commenting && (
+          <div className="mt-2">
+            <Textarea
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="min-h-[80px]"
+            />
+            <Button onClick={handleSubmitComment} disabled={!comment.trim()}>
+              Submit Comment
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
