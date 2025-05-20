@@ -48,9 +48,9 @@ export function Footer() {
               <BarChart3 className="h-5 w-5" />
               Leaderboard
             </Link>
-             <Link href="/history" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
-              <ListChecks className="h-5 w-5" />
-              Quiz History
+             <Link href="/community" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
+              <BrainCircuit className="h-5 w-5" />
+              Community
             </Link>
             <Link href="/challenge" className="text-base md:text-lg text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 w-full">
               <Link2 className="h-5 w-5" />

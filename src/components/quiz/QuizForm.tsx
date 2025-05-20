@@ -35,6 +35,8 @@ import { Loader2 } from "lucide-react"; // Link2Icon, Copy, Check removed
 // addChallenge removed as this form no longer creates challenges
 import type { QuizQuestion } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+import { getDb } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
   topic: z.string().min(2, "Topic must be at least 2 characters.").max(100, "Topic too long."),
@@ -56,6 +58,7 @@ export function QuizForm() {
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [challengerName, setChallengerName] = useState<string | null>(null);
+  const [remixedFrom, setRemixedFrom] = useState<{ id: string; topic: string; creatorName?: string } | null>(null);
   // generatedChallengeLink and copiedChallengeLink state removed
 
   const form = useForm<QuizFormValues>({
@@ -79,6 +82,7 @@ export function QuizForm() {
     const questionsParam = searchParams.get("questions");
     const timeLimitParam = searchParams.get("timeLimit");
     const challengerNameParam = searchParams.get("challengerName");
+    const remixId = searchParams.get('remix');
 
     if (topicParam) form.setValue("topic", topicParam);
     if (subtopicParam) form.setValue("subtopic", subtopicParam);
@@ -99,6 +103,24 @@ export function QuizForm() {
     }
     if (challengerNameParam) {
       setChallengerName(challengerNameParam);
+    }
+    if (remixId) {
+      // Fetch quiz data from Firestore and pre-fill
+      (async () => {
+        const db = getDb();
+        const quizRef = doc(db, 'quizzes', remixId);
+        const quizSnap = await getDoc(quizRef);
+        if (quizSnap.exists()) {
+          const data = quizSnap.data();
+          form.setValue('topic', data.topic || '');
+          form.setValue('subtopic', data.subtopic || '');
+          form.setValue('difficulty', data.difficulty || 'medium');
+          form.setValue('numberOfQuestions', data.numberOfQuestions || 10);
+          form.setValue('timeLimit', data.timeLimit || 15);
+          form.setValue('additionalInstructions', data.additionalInstructions || '');
+          setRemixedFrom({ id: remixId, topic: data.topic, creatorName: data.creatorName });
+        }
+      })();
     }
   }, [searchParams, form]);
 
@@ -153,6 +175,7 @@ export function QuizForm() {
         timeLimit: values.timeLimit,
         ...(values.subtopic && values.subtopic.trim() !== "" ? { subtopic: values.subtopic } : {}),
         ...(values.additionalInstructions && values.additionalInstructions.trim() !== "" ? { additionalInstructions: values.additionalInstructions } : {}),
+        ...(remixedFrom ? { remixedFrom } : {}),
       });
 
       toast({
@@ -179,9 +202,10 @@ export function QuizForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {challengerName && (
-          <div className="p-3 bg-accent/10 border border-accent text-accent-foreground rounded-md text-center">
-            You are taking a quiz challenged by <strong>{challengerName}</strong>!
+        {remixedFrom && (
+          <div className="p-3 bg-purple-100 border border-purple-400 text-purple-800 rounded-md text-center">
+            Remixed from: <strong>{remixedFrom.topic}</strong>
+            {remixedFrom.creatorName && <> by <span>{remixedFrom.creatorName}</span></>}
           </div>
         )}
 
