@@ -100,7 +100,7 @@ export default function ChallengeSlugPage() {
 
   if (isLoading || authLoading || !isClient) {
     return (
-      <LottieLoader message="Loading challenge..." size={120} className="min-h-[calc(100vh-20rem)]" />
+      <LottieLoader text="Loading challenge..." />
     );
   }
 
@@ -127,7 +127,7 @@ export default function ChallengeSlugPage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)]">
-      <LottieLoader message="Preparing your challenge quiz..." size={120} />
+      <LottieLoader text="Preparing your challenge quiz..." />
     </div>
   );
 }

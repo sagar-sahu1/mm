@@ -7,7 +7,6 @@ import type { Metadata } from 'next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { LottieLoader } from '@/components/ui/LottieLoader';
 
 function CreateQuizPageContent() {
   return (
@@ -36,10 +35,10 @@ export default function CreateQuizPage() {
     }
   }, [currentUser, loading, router]);
   if (loading || !currentUser) {
-    return <LottieLoader message="Loading..." size={80} className="h-64" />;
+    return <div className="flex justify-center items-center h-64">Loading...</div>;
   }
   return (
-    <Suspense fallback={<LottieLoader message="Loading quiz options..." size={80} />}>
+    <Suspense fallback={<div>Loading quiz options...</div>}>
       <CreateQuizPageContent />
     </Suspense>
   );

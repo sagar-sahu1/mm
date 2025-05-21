@@ -34,7 +34,7 @@ export default function QuizHistoryPage() {
 
   if (!isClient || authLoading || !currentUser) {
     return (
-      <LottieLoader message="Loading history..." size={80} className="h-64" />
+      <LottieLoader text="Loading history..." />
     );
   }
 

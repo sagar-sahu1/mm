@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -10,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2 } from 'lucide-react';
+import { LottieLoader } from '@/components/ui/LottieLoader';
 import { GoogleIcon } from '@/components/icons/GoogleIcon'; // Import GoogleIcon
 import { Separator } from '@/components/ui/separator';
 
@@ -97,7 +96,7 @@ export function SignupForm() {
             )}
           />
           <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" /> }
+            {isLoading && <LottieLoader size={24} text="" fullscreen={false} />}
             Sign Up
           </Button>
         </form>
@@ -116,9 +115,9 @@ export function SignupForm() {
 
       <Button variant="outline" className="w-full" onClick={handleGoogleSignup} disabled={isLoading || isGoogleLoading}>
         {isGoogleLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <LottieLoader size={24} text="" fullscreen={false} />
         ) : (
-            <GoogleIcon className="mr-2 h-4 w-4" />
+          <GoogleIcon className="mr-2 h-4 w-4" />
         )}
         Google
       </Button>

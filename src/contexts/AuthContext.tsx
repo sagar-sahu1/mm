@@ -17,6 +17,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { createUserProfileDocument, getUserProfile, recordUserLogin, updateUserProfile } from '@/lib/firestoreUtils';
 import type { UserProfileFirestoreData } from '@/types';
+import { LottieLoader } from '@/components/ui/LottieLoader';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -229,34 +230,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {!loading && children}
-      {loading && (
-        <div className="flex justify-center items-center h-screen bg-background">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        </div>
-      )}
+      {loading && <LottieLoader text="Loading MindMash..." />}
     </AuthContext.Provider>
   );
 }
-
-function Loader2(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-  );
-}
-
 
 export function useAuth() {
   const context = useContext(AuthContext);

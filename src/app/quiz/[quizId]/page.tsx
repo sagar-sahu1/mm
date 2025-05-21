@@ -628,7 +628,7 @@ export default function QuizPage() {
 
   if (!isClient || isLoadingQuiz) {
     return (
-      <LottieLoader message="Loading your quiz..." size={120} className="min-h-[calc(100vh-200px)]" />
+      <LottieLoader text="Loading your quiz..." />
     );
   }
 

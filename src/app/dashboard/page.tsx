@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuiz } from '@/contexts/QuizContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, UserCircle, ListChecks, Lightbulb, Link2 } from 'lucide-react';
+import { Lightbulb, ListChecks, Link2, UserCircle } from 'lucide-react';
 import type { Quiz } from '@/types';
 import { LoginStreakDisplay } from '@/components/dashboard/LoginStreakDisplay';
 import { getUniqueLoginDates, calculateUserLoginStreak, getWeeklyLoginStatus } from '@/lib/firestoreUtils';
@@ -68,7 +68,7 @@ export default function DashboardPage() {
 
   if (!isClient || authLoading || !currentUser) {
     return (
-      <LottieLoader message="Loading dashboard..." size={80} className="min-h-[calc(100vh-20rem)]" />
+      <LottieLoader text="Loading dashboard..." />
     );
   }
 
@@ -123,7 +123,7 @@ export default function DashboardPage() {
           </Card>
            {isStreakLoading ? (
              <Card className="text-center shadow-md flex items-center justify-center min-h-[150px]">
-                <LottieLoader message="Loading streak..." size={60} />
+                <LottieLoader size={40} text="" fullscreen={false} />
              </Card>
            ) : (
             <LoginStreakDisplay streak={loginStreak} weeklyStatus={weeklyStatus} />

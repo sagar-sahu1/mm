@@ -30,7 +30,7 @@ export default function ResultsPage() {
 
   if (!isClient || isLoadingQuiz) {
     return (
-      <LottieLoader message="Loading quiz results..." size={120} className="min-h-[calc(100vh-200px)]" />
+       <LottieLoader text="Loading quiz results..." />
     );
   }
   

@@ -14,7 +14,7 @@ import { QuizProvider } from '@/contexts/QuizContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ClientAnalyticsInitializer } from '@/components/layout/ClientAnalyticsInitializer';
 import { Suspense, useState, useEffect } from 'react';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { usePathname } from 'next/navigation';
 import { LottieLoader } from '@/components/ui/LottieLoader';
 
 // Configure Playfair Display as primary font
@@ -38,16 +38,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [loading, setLoading] = useState(true);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Simulate a loading process
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 3000); // Display loading for 3 seconds
-
+    setRouteLoading(true);
+    const timer = setTimeout(() => setRouteLoading(false), 400); // short delay to prevent flicker
     return () => clearTimeout(timer);
-  }, []);
+  }, [pathname]);
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -56,24 +54,21 @@ export default function RootLayout({
           defaultTheme="system"
           storageKey="mindmash-theme"
         >
-          {loading ? (
-            <LottieLoader message="Loading MindMash..." size={300} className="min-h-screen bg-background" />
-          ) : (
-            <Suspense fallback={<LottieLoader message="Loading..." size={120} className="min-h-screen" />}>
-              <AuthProvider>
-                <QuizProvider>
-                  <ClientAnalyticsInitializer />
-                  <Header />
-                  <main className="flex-grow container py-8">
-                    {children}
-                  </main>
-                  <Footer />
-                  <SettingsButton />
-                  <Toaster />
-                </QuizProvider>
-              </AuthProvider>
-            </Suspense>
-          )}
+          {routeLoading && <LottieLoader text="Loading MindMash..." />}
+          <Suspense fallback={null}>
+            <AuthProvider>
+              <QuizProvider>
+                <ClientAnalyticsInitializer />
+                <Header />
+                <main className="flex-grow container py-8">
+                  {children}
+                </main>
+                <Footer />
+                <SettingsButton />
+                <Toaster />
+              </QuizProvider>
+            </AuthProvider>
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>

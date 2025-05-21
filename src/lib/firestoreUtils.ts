@@ -413,20 +413,23 @@ export function getWeeklyLoginStatus(uniqueLoginDates: string[], referenceDate: 
     end: dateFnsAddDays(startOfCurrentWeek, 6),
   });
   
-  const loginArray = uniqueLoginDates.map(dateStr => {
-    try {
-      const dateObj = parseISO(dateStr);
-      if (isNaN(dateObj.getTime())) {
-        console.warn(`Invalid date string encountered in login history: ${dateStr}`);
-        return null;
-      }
-      return format(dateObj, 'yyyy-MM-dd');
-    } catch (e) {
-      console.warn(`Error parsing date string ${dateStr}:`, e);
-      return null;
-    }
-  }).filter((date): date is string => date !== null);
-  const loginSet = new Set(loginArray);
+  const loginSet = new Set(
+    uniqueLoginDates
+      .map(dateStr => {
+        try {
+          const dateObj = parseISO(dateStr);
+          if (isNaN(dateObj.getTime())) {
+            console.warn(`Invalid date string encountered in login history: ${dateStr}`);
+            return null;
+          }
+          return format(dateObj, 'yyyy-MM-dd');
+        } catch (e) {
+          console.warn(`Error parsing date string ${dateStr}:`, e);
+          return null;
+        }
+      })
+      .filter((date): date is string => date !== null)
+  );
 
   const weeklyStatus = weekDays.map(day => {
     const dayStr = format(day, 'yyyy-MM-dd');

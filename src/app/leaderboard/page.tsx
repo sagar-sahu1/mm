@@ -5,7 +5,7 @@ import { getLeaderboardUsers } from '@/lib/firestoreUtils';
 import type { UserProfile } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Trophy, UserCircle, BarChart3 } from 'lucide-react';
+import { Trophy, UserCircle, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -60,12 +60,12 @@ export default function LeaderboardPage() {
   }, [timeFilter]); // Re-fetch when time filter changes
 
   if (loading || !currentUser) {
-    return <LottieLoader message="Loading..." size={80} className="h-64" />;
+    return <LottieLoader text="Loading..." />;
   }
 
   if (isLoading) {
     return (
-      <LottieLoader message="Loading Leaderboard..." size={120} className="min-h-[calc(100vh-20rem)]" />
+      <LottieLoader text="Loading Leaderboard..." />
     );
   }
 
