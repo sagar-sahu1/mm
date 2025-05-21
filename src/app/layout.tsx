@@ -1,4 +1,3 @@
-"use client";
 // NOTE: If you need to define metadata for this layout, create a separate file named layout.metadata.ts in the same directory and export the metadata object from there.
 
 import type { Metadata } from 'next';
@@ -38,6 +37,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+<<<<<<< HEAD
   const [routeLoading, setRouteLoading] = useState(false);
   const pathname = usePathname();
 
@@ -47,15 +47,22 @@ export default function RootLayout({
     return () => clearTimeout(timer);
   }, [pathname]);
 
+=======
+>>>>>>> 29de5215e62b746f53febc6e4475f8db1f9aa763
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${playfair.variable} ${outfit.variable} antialiased flex flex-col min-h-screen`}>
         <ThemeProvider
           defaultTheme="system"
           storageKey="mindmash-theme"
+<<<<<<< HEAD
         >
           {routeLoading && <LottieLoader text="Loading MindMash..." />}
           <Suspense fallback={null}>
+=======
+        > 
+          <Suspense fallback={<LottieLoader message="Loading..." size={120} className="min-h-screen" />}>
+>>>>>>> 29de5215e62b746f53febc6e4475f8db1f9aa763
             <AuthProvider>
               <QuizProvider>
                 <ClientAnalyticsInitializer />
