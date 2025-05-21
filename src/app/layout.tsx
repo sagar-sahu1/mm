@@ -1,6 +1,7 @@
 "use client";
 // NOTE: If you need to define metadata for this layout, create a separate file named layout.metadata.ts in the same directory and export the metadata object from there.
 
+import { useRouter } from 'next/router';
 import type { Metadata } from 'next';
 import { Outfit, Playfair_Display } from 'next/font/google';
 import './globals.css';
@@ -38,16 +39,23 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Simulate a loading process
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 3000); // Display loading for 3 seconds
+    const handleRouteChangeStart = () => setLoading(true);
+    const handleRouteChangeComplete = () => setLoading(false);
 
-    return () => clearTimeout(timer);
-  }, []);
+    if (router.isReady) {
+      router.events.on('routeChangeStart', handleRouteChangeStart);
+      router.events.on('routeChangeComplete', handleRouteChangeComplete);
+    }
+
+    return () => {
+      router.events.off('routeChangeStart', handleRouteChangeStart);
+      router.events.off('routeChangeComplete', handleRouteChangeComplete);
+    };
+  }, [router.events, router.isReady]);
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -55,20 +63,17 @@ export default function RootLayout({
         <ThemeProvider
           defaultTheme="system"
           storageKey="mindmash-theme"
-        >
-          {loading ? (
-            <LottieLoader message="Loading MindMash..." size={300} className="min-h-screen bg-background" />
-          ) : (
-            <Suspense fallback={<LottieLoader message="Loading..." size={120} className="min-h-screen" />}>
-              <AuthProvider>
-                <QuizProvider>
-                  <ClientAnalyticsInitializer />
-                  <Header />
-                  <main className="flex-grow container py-8">
-                    {children}
-                  </main>
-                  <Footer />
-                  <SettingsButton />
+        > 
+          <Suspense fallback={<LottieLoader message="Loading..." size={120} className="min-h-screen" />}>
+            <AuthProvider>
+              <QuizProvider>
+                <ClientAnalyticsInitializer />
+                <Header />
+                <main className="flex-grow container py-8">
+                  <LottieLoader>{children}</LottieLoader>
+                </main>
+                <Footer />
+                <SettingsButton />
                   <Toaster />
                 </QuizProvider>
               </AuthProvider>
