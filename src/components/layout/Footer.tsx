@@ -77,8 +77,8 @@ export function Footer() {
           <div className="text-center text-sm text-muted-foreground">
             © 2025 MindMash by
             <div className="flex flex-col items-center mt-1">
-              <Link href="https://github.com/SkShahil" className="text-primary hover:text-primary/80 transition-colors">
-                Sk Shahil Akhtar
+              <Link href="https://github.com/sagar-sahu1" className="text-primary hover:text-primary/80 transition-colors">
+                Sagar Sahu
               </Link>
               <Link href="https://github.com/SahilSR81" className="text-primary hover:text-primary/80 transition-colors">
                 Sahil Singh
